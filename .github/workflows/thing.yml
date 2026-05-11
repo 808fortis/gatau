@@ -11,16 +11,22 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y aria2
+      - run: sudo apt-get update && sudo apt-get install -y aria2 jq
       - id: id
-        run: echo "id=${GITHUB_EVENT_INPUTS_LINK#*'/u/'}" >> $GITHUB_OUTPUT
+        run: |
+          ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
+          echo "id=$ID" >> $GITHUB_OUTPUT
+      - name: Get filename
+        id: file
+        run: |
+          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
+          FILENAME=$(curl -sI "$URL" | grep -i "content-disposition" | grep -oP 'filename="\K[^"]+')
+          echo "name=$FILENAME" >> $GITHUB_OUTPUT
       - run: |
-          curl -sI "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download" > headers.txt
-          FILENAME=$(grep -i "content-disposition" headers.txt | sed -n 's/.*filename="\(.*\)".*/\1/p')
-          aria2c -x 16 -s 16 -k 16M --out "$FILENAME" "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
+          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
+          aria2c -x 16 -s 16 -k 16M --out "${{ steps.file.outputs.name }}" "$URL"
       - env:
           TOKEN: ${{ secrets.TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
-          FILENAME=$(grep -i "content-disposition" headers.txt | sed -n 's/.*filename="\(.*\)".*/\1/p')
-          curl -F "chat_id=$CHAT_ID" -F "document=@$FILENAME" "https://api.telegram.org/bot$TOKEN/sendDocument"
+          curl -F "chat_id=$CHAT_ID" -F "document=@${{ steps.file.outputs.name }}" "https://api.telegram.org/bot$TOKEN/sendDocument"
