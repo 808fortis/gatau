@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y aria2 jq
+      - run: sudo apt-get update && sudo apt-get install -y aria2 jq git-lfs
+      - run: git lfs install
       - id: id
         run: |
           ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
@@ -30,8 +31,9 @@ jobs:
           mkdir -p P661N
           mv "${{ steps.file.outputs.name }}" P661N/
       - run: |
+          git lfs track "P661N/*"
+          git add .gitattributes P661N/
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add P661N/
           git diff --cached --quiet || git commit -m "Add downloaded file to P661N"
           git push
