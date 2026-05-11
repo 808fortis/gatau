@@ -14,13 +14,13 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y aria2
       - id: id
         run: echo "id=${GITHUB_EVENT_INPUTS_LINK#*'/u/'}" >> $GITHUB_OUTPUT
-      - run: aria2c -x 16 -s 16 -k 16M --out "temp_file" "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
       - run: |
-          ORIGINAL_NAME=$(curl -sI "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download" | grep -i "content-disposition" | sed -n 's/.*filename="\(.*\)".*/\1/p')
-          mv temp_file "$ORIGINAL_NAME"
+          curl -sI "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download" > headers.txt
+          FILENAME=$(grep -i "content-disposition" headers.txt | sed -n 's/.*filename="\(.*\)".*/\1/p')
+          aria2c -x 16 -s 16 -k 16M --out "$FILENAME" "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
       - env:
           TOKEN: ${{ secrets.TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
-          ORIGINAL_NAME=$(curl -sI "https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download" | grep -i "content-disposition" | sed -n 's/.*filename="\(.*\)".*/\1/p')
-          curl -F "chat_id=$CHAT_ID" -F "document=@$ORIGINAL_NAME" "https://api.telegram.org/bot$TOKEN/sendDocument"
+          FILENAME=$(grep -i "content-disposition" headers.txt | sed -n 's/.*filename="\(.*\)".*/\1/p')
+          curl -F "chat_id=$CHAT_ID" -F "document=@$FILENAME" "https://api.telegram.org/bot$TOKEN/sendDocument"
