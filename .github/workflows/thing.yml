@@ -11,6 +11,7 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y aria2 jq
       - id: id
         run: |
@@ -25,8 +26,12 @@ jobs:
       - run: |
           URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
           aria2c -x 16 -s 16 -k 16M --out "${{ steps.file.outputs.name }}" "$URL"
-      - env:
-          TOKEN: ${{ secrets.TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: |
-          curl -F "chat_id=$CHAT_ID" -F "document=@${{ steps.file.outputs.name }}" "https://api.telegram.org/bot$TOKEN/sendDocument"
+      - run: |
+          mkdir -p P661N
+          mv "${{ steps.file.outputs.name }}" P661N/
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add P661N/
+          git diff --cached --quiet || git commit -m "Add downloaded file to P661N"
+          git push
