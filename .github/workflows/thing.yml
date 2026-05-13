@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y aria2 jq
+      - run: sudo apt-get update && sudo apt-get install -y jq unrar
       - id: id
         run: |
           ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
@@ -23,23 +23,18 @@ jobs:
           URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
           FILENAME=$(curl -sI "$URL" | grep -i "content-disposition" | grep -oP 'filename="\K[^"]+')
           echo "name=$FILENAME" >> $GITHUB_OUTPUT
-      - run: |
-          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
-          aria2c -x 16 -s 16 -k 16M --out "${{ steps.file.outputs.name }}" "$URL"
-      - name: Check file size and upload to artifact if under 10MB
+      - name: Download with curl progress bar
         run: |
-          FILE_SIZE=$(stat -c%s "${{ steps.file.outputs.name }}")
-          if [ $FILE_SIZE -lt 10485760 ]; then
-            echo "FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE/1048576" | bc)" >> $GITHUB_ENV
-            echo "UPLOAD_ARTIFACT=true" >> $GITHUB_ENV
-          else
-            echo "File size is $(echo "scale=2; $FILE_SIZE/1048576" | bc)MB which exceeds 10MB, skipping artifact upload"
-            echo "UPLOAD_ARTIFACT=false" >> $GITHUB_ENV
-          fi
-      - name: Upload to artifact
-        if: env.UPLOAD_ARTIFACT == 'true'
+          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
+          curl -L --progress-bar -o "${{ steps.file.outputs.name }}" "$URL"
+      - name: Extract RAR file
+        run: |
+          unrar x "${{ steps.file.outputs.name }}" extracted/
+      - name: Find and upload all files ≤10MB
         uses: actions/upload-artifact@v4
         with:
-          name: downloaded-file
-          path: ${{ steps.file.outputs.name }}
+          name: small-files
+          path: |
+            extracted/**/*
           retention-days: 90
+        continue-on-error: true
