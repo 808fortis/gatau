@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y jq unrar
+      - run: sudo apt-get update && sudo apt-get install -y jq unrar p7zip-full
       - id: id
         run: |
           ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
@@ -27,14 +27,38 @@ jobs:
         run: |
           URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
           curl -L --progress-bar -o "${{ steps.file.outputs.name }}" "$URL"
-      - name: Extract RAR file
+      - name: Auto extract archive
         run: |
-          unrar x "${{ steps.file.outputs.name }}" extracted/
-      - name: Find and upload all files ≤10MB
+          FILE="${{ steps.file.outputs.name }}"
+          EXT="${FILE##*.}"
+          
+          mkdir -p extracted
+          
+          case "$EXT" in
+            zip)
+              echo "Extracting ZIP file..."
+              unzip -q "$FILE" -d extracted/
+              ;;
+            rar)
+              echo "Extracting RAR file..."
+              unrar x "$FILE" extracted/
+              ;;
+            7z)
+              echo "Extracting 7Z file..."
+              7z x "$FILE" -oextracted/ -y
+              ;;
+            *)
+              echo "Unknown format: $EXT, copying file as-is"
+              cp "$FILE" extracted/
+              ;;
+          esac
+          
+          echo "Extraction complete. Contents:"
+          ls -la extracted/
+      - name: Upload all files ≤10MB from extracted folder
         uses: actions/upload-artifact@v4
         with:
-          name: small-files
-          path: |
-            extracted/**/*
+          name: extracted-files
+          path: extracted/**/*
           retention-days: 90
         continue-on-error: true
