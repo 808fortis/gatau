@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y aria2 jq git-lfs
-      - run: git lfs install
+      - run: sudo apt-get update && sudo apt-get install -y aria2 jq
       - id: id
         run: |
           ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
@@ -27,13 +26,20 @@ jobs:
       - run: |
           URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
           aria2c -x 16 -s 16 -k 16M --out "${{ steps.file.outputs.name }}" "$URL"
-      - run: |
-          mkdir -p P661N
-          mv "${{ steps.file.outputs.name }}" P661N/
-      - run: |
-          git lfs track "P661N/*"
-          git add .gitattributes P661N/
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --cached --quiet || git commit -m "Add downloaded file to P661N"
-          git push
+      - name: Check file size and upload to artifact if under 10MB
+        run: |
+          FILE_SIZE=$(stat -c%s "${{ steps.file.outputs.name }}")
+          if [ $FILE_SIZE -lt 10485760 ]; then
+            echo "FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE/1048576" | bc)" >> $GITHUB_ENV
+            echo "UPLOAD_ARTIFACT=true" >> $GITHUB_ENV
+          else
+            echo "File size is $(echo "scale=2; $FILE_SIZE/1048576" | bc)MB which exceeds 10MB, skipping artifact upload"
+            echo "UPLOAD_ARTIFACT=false" >> $GITHUB_ENV
+          fi
+      - name: Upload to artifact
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-file
+          path: ${{ steps.file.outputs.name }}
+          retention-days: 90
