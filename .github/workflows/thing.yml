@@ -23,23 +23,24 @@ jobs:
         run: |
           # Find all source statements in Kconfig files
           find . -name "Kconfig*" -type f | while read -r kconfig; do
-            # Extract source paths
             grep -E '^source\s+"[^"]+"' "$kconfig" | sed 's/^source\s+"\(.*\)"$/\1/' | while read -r src_path; do
-              # Resolve path relative to kernel root
-              if [[ "$src_path" =~ ^\.\. ]]; then
+              # Skip invalid or root paths
+              if [[ "$src_path" == *".."* ]] || [[ "$src_path" == "Kconfig"* ]] || [[ "$src_path" =~ ^\. ]]; then
                 continue
               fi
               
-              # Get directory of the source
-              src_dir=$(dirname "$src_path")
-              src_file=$(basename "$src_path")
-              
-              # Check if the source file exists
+              # Check if source file doesn't exist
               if [[ ! -f "$src_path" ]]; then
                 echo "Creating dummy: $src_path"
-                rm -rf "$src_dir"
-                mkdir -p "$src_dir"
-                touch "$src_path"
+                src_dir=$(dirname "$src_path")
+                
+                # Only remove if directory exists and is not current dir
+                if [[ -d "$src_dir" ]] && [[ "$src_dir" != "." ]]; then
+                  rm -rf "$src_dir" 2>/dev/null || true
+                fi
+                
+                mkdir -p "$src_dir" 2>/dev/null || true
+                touch "$src_path" 2>/dev/null || true
               fi
             done
           done
