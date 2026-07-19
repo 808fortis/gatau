@@ -1,64 +1,27 @@
-name: thing
+name: CI
 
 on:
   workflow_dispatch:
-    inputs:
-      link:
-        description: PixelDrain Link
-        required: true
+
+permissions:
+  contents: write
 
 jobs:
-  go:
-    runs-on: ubuntu-latest
+  build-kernel:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y jq unrar p7zip-full
-      - id: id
-        run: |
-          ID=$(echo "${{ github.event.inputs.link }}" | grep -oP '(?<=/u/)[a-zA-Z0-9]+' | head -1)
-          echo "id=$ID" >> $GITHUB_OUTPUT
-      - name: Get filename
-        id: file
-        run: |
-          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
-          FILENAME=$(curl -sI "$URL" | grep -i "content-disposition" | grep -oP 'filename="\K[^"]+')
-          echo "name=$FILENAME" >> $GITHUB_OUTPUT
-      - name: Download with curl progress bar
-        run: |
-          URL="https://pixeldrain.com/api/file/${{ steps.id.outputs.id }}?download"
-          curl -L --progress-bar -o "${{ steps.file.outputs.name }}" "$URL"
-      - name: Auto extract archive
-        run: |
-          FILE="${{ steps.file.outputs.name }}"
-          EXT="${FILE##*.}"
-          
-          mkdir -p extracted
-          
-          case "$EXT" in
-            zip)
-              echo "Extracting ZIP file..."
-              unzip -q "$FILE" -d extracted/
-              ;;
-            rar)
-              echo "Extracting RAR file..."
-              unrar x "$FILE" extracted/
-              ;;
-            7z)
-              echo "Extracting 7Z file..."
-              7z x "$FILE" -oextracted/ -y
-              ;;
-            *)
-              echo "Unknown format: $EXT, copying file as-is"
-              cp "$FILE" extracted/
-              ;;
-          esac
-          
-          echo "Extraction complete. Contents:"
-          ls -la extracted/
-      - name: Upload all files ≤10MB from extracted folder
-        uses: actions/upload-artifact@v4
+      - name: Build
+        uses: dabao1955/kernel_build_action@main
         with:
-          name: extracted-files
-          path: extracted/**/*
-          retention-days: 90
-        continue-on-error: true
+          kernel-url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource/
+          kernel-branch: surya-q-oss
+          config: cas_defconfig
+          arch: arm64
+          aosp-gcc: true
+          aosp-clang: true
+          android-version: 12
+          aosp-clang-version: r383902
+          anykernel3: true
+          release: true
+          access-token: ${{ secrets.GITHUB_TOKEN }}
