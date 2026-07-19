@@ -52,27 +52,4 @@ jobs:
           aosp-clang-version: r383902
           anykernel3: true
           release: true
-          access-token: ${{ secrets.GITHUB_TOKEN }}                # Only remove if directory exists and is not current dir
-                if [[ -d "$src_dir" ]] && [[ "$src_dir" != "." ]]; then
-                  rm -rf "$src_dir" 2>/dev/null || true
-                fi
-                
-                mkdir -p "$src_dir" 2>/dev/null || true
-                touch "$src_path" 2>/dev/null || true
-              fi
-            done
-          done
-
-      - name: Build Kernel
-        uses: dabao1955/kernel_build_action@main
-        with:
-          kernel-url: ./
-          config: oppo6765_defconfig
-          arch: arm64
-          android-version: 11
-          aosp-gcc: true
-          aosp-clang: true
-          aosp-clang-version: r383902
-          anykernel3: true
-          release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
