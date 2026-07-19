@@ -45,6 +45,34 @@ jobs:
           mkdir -p drivers/base/power/owakelock
           touch drivers/base/power/owakelock/Kconfig
 
+          rm -rf net/sunrpc
+          mkdir -p net/sunrpc
+          touch net/sunrpc/Kconfig
+
+          rm -rf fs/ceph
+          mkdir -p fs/ceph
+          touch fs/ceph/Kconfig
+
+          rm -rf fs/cifs
+          mkdir -p fs/cifs
+          touch fs/cifs/Kconfig
+
+          rm -rf fs/coda
+          mkdir -p fs/coda
+          touch fs/coda/Kconfig
+
+          rm -rf fs/afs
+          mkdir -p fs/afs
+          touch fs/afs/Kconfig
+
+          rm -rf fs/9p
+          mkdir -p fs/9p
+          touch fs/9p/Kconfig
+
+          rm -rf fs/exfat
+          mkdir -p fs/exfat
+          touch fs/exfat/Kconfig
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
