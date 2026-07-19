@@ -13,14 +13,14 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel_url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource
-          kernel_branch: surya-q-oss
-          defconfig: vendor/atoll_defconfig
+          kernel-url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource
+          kernel-branch: surya-q-oss
+          config: vendor/atoll_defconfig
           arch: arm64
-          aosp_gcc: true
-          aosp_clang: true
-          android_version: 10
-          clang_version: r416183b
+          android-version: 10
+          aosp-gcc: true
+          aosp-clang: true
+          aosp-clang-version: r416183b
           anykernel3: true
           release: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          access-token: ${{ secrets.GITHUB_TOKEN }}
