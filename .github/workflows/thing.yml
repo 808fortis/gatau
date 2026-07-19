@@ -21,9 +21,9 @@ jobs:
 
       - name: Some fixes
         run: |
+          rm -rf block/foreground_io_opt
           mkdir -p block/foreground_io_opt
           touch block/foreground_io_opt/Kconfig
-          sed -i 's|source "block/foreground_io_opt/Kconfig"|source "block/foreground_io_opt"|g' block/Kconfig
 
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
