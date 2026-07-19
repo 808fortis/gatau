@@ -29,6 +29,10 @@ jobs:
           mkdir -p mm/oppo_healthinfo
           touch mm/oppo_healthinfo/Kconfig
 
+          rm -rf mm/multi_kswapd
+          mkdir -p mm/multi_kswapd
+          touch mm/multi_kswapd/Kconfig
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
