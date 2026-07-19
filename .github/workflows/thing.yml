@@ -37,6 +37,10 @@ jobs:
           mkdir -p mm/malloc_track/
           touch mm/malloc_track/Kconfig.compat
           
+          rm -rf mm/task_mem
+          mkdir -p mm/task_mem
+          touch mm/task_mem/Kconfig
+          
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
