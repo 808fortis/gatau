@@ -19,36 +19,10 @@ jobs:
           repository: oppo-source/android_kernel_oppo_mt6765
           ref: oppo/mt6765_r_11.1.4_a16
 
-      - name: Auto dummy missing Kconfig sources
+      - name: Fix
         run: |
-          # 1. Manually create dummies for all known problematic paths (from previous errors)
-          mkdir -p block/foreground_io_opt mm/oppo_healthinfo mm/multi_kswapd mm/malloc_track mm/task_mem drivers/base/power/owakelock net/sunrpc fs/ceph fs/cifs fs/coda fs/afs fs/9p fs/exfat
-          touch block/foreground_io_opt/Kconfig mm/oppo_healthinfo/Kconfig mm/multi_kswapd/Kconfig mm/malloc_track/Kconfig mm/malloc_track/Kconfig.compat mm/task_mem/Kconfig drivers/base/power/owakelock/Kconfig net/sunrpc/Kconfig fs/ceph/Kconfig fs/cifs/Kconfig fs/coda/Kconfig fs/afs/Kconfig fs/9p/Kconfig fs/exfat/Kconfig
-
-          # 2. Auto-detect and create any other missing source references
-          find . -name "Kconfig*" -type f -exec grep -E 'source\s+"[^"]+"' {} \; 2>/dev/null | \
-            sed -n 's/.*source\s+"\([^"]*\)".*/\1/p' | \
-            sort -u | \
-            while read -r src_path; do
-              # Skip invalid/dangerous paths
-              if [[ "$src_path" == *".."* ]] || \
-                 [[ "$src_path" == "Kconfig"* ]] || \
-                 [[ "$src_path" =~ ^\. ]] || \
-                 [[ -z "$src_path" ]]; then
-                continue
-              fi
-
-              if [[ ! -f "$src_path" ]]; then
-                echo "Auto-creating dummy for: $src_path"
-                src_dir=$(dirname "$src_path")
-                # Avoid removing current directory
-                if [[ "$src_dir" != "." ]] && [[ "$src_dir" != "" ]]; then
-                  rm -rf "$src_dir" 2>/dev/null || true
-                  mkdir -p "$src_dir"
-                  touch "$src_path"
-                fi
-              fi
-            done
+          chmod +x fix.sh
+          ./fix.sh
 
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
