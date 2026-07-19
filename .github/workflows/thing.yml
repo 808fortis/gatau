@@ -21,33 +21,32 @@ jobs:
 
       - name: Auto dummy missing Kconfig sources
         run: |
-          # Collect all unique source paths from all Kconfig* files
+          # 1. Manually create dummies for all known problematic paths (from previous errors)
+          mkdir -p block/foreground_io_opt mm/oppo_healthinfo mm/multi_kswapd mm/malloc_track mm/task_mem drivers/base/power/owakelock net/sunrpc fs/ceph fs/cifs fs/coda fs/afs fs/9p fs/exfat
+          touch block/foreground_io_opt/Kconfig mm/oppo_healthinfo/Kconfig mm/multi_kswapd/Kconfig mm/malloc_track/Kconfig mm/malloc_track/Kconfig.compat mm/task_mem/Kconfig drivers/base/power/owakelock/Kconfig net/sunrpc/Kconfig fs/ceph/Kconfig fs/cifs/Kconfig fs/coda/Kconfig fs/afs/Kconfig fs/9p/Kconfig fs/exfat/Kconfig
+
+          # 2. Auto-detect and create any other missing source references
           find . -name "Kconfig*" -type f -exec grep -E 'source\s+"[^"]+"' {} \; 2>/dev/null | \
-            sed 's/.*source\s+"\([^"]*\)".*/\1/' | \
+            sed -n 's/.*source\s+"\([^"]*\)".*/\1/p' | \
             sort -u | \
             while read -r src_path; do
-              # Skip invalid or dangerous paths
+              # Skip invalid/dangerous paths
               if [[ "$src_path" == *".."* ]] || \
                  [[ "$src_path" == "Kconfig"* ]] || \
                  [[ "$src_path" =~ ^\. ]] || \
-                 [[ "$src_path" == "" ]]; then
+                 [[ -z "$src_path" ]]; then
                 continue
               fi
-              
-              # Check if the source file exists
+
               if [[ ! -f "$src_path" ]]; then
-                echo "Creating dummy: $src_path"
+                echo "Auto-creating dummy for: $src_path"
                 src_dir=$(dirname "$src_path")
-                
-                # Skip if directory is current or parent
-                if [[ "$src_dir" == "." ]] || [[ "$src_dir" == ".." ]]; then
-                  continue
+                # Avoid removing current directory
+                if [[ "$src_dir" != "." ]] && [[ "$src_dir" != "" ]]; then
+                  rm -rf "$src_dir" 2>/dev/null || true
+                  mkdir -p "$src_dir"
+                  touch "$src_path"
                 fi
-                
-                # Remove existing directory and create fresh dummy
-                rm -rf "$src_dir" 2>/dev/null || true
-                mkdir -p "$src_dir"
-                touch "$src_path"
               fi
             done
 
