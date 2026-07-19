@@ -41,6 +41,10 @@ jobs:
           mkdir -p mm/task_mem
           touch mm/task_mem/Kconfig
           
+          rm -rf drivers/base/power/owakelock
+          mkdir -p drivers/base/power/owakelock
+          touch drivers/base/power/owakelock/Kconfig
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
