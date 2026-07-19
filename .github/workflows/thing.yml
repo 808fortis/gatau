@@ -1,4 +1,4 @@
-name: Build Kernel
+name: Build Kernel (MT6765)
 
 on:
   workflow_dispatch:
@@ -9,19 +9,19 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+
     steps:
-      - name: Build
+      - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource
-          kernel-branch: surya-q-oss
-          config: vendor/atoll_defconfig
+          kernel-url: https://github.com/oppo-source/android_kernel_oppo_mt6765
+          kernel-branch: oppo/mt6765_r_11.1.4_a16
+          config: oppo6765_defconfig
           arch: arm64
-          android-version: 10
+          android-version: 11
           aosp-gcc: true
-          aosp-clang: false
-          other-clang-url: https://github.com/kdrag0n/proton-clang
-          other-clang-branch: master
+          aosp-clang: true
+          aosp-clang-version: r383902
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
