@@ -19,10 +19,20 @@ jobs:
           repository: oppo-source/android_kernel_oppo_mt6765
           ref: oppo/mt6765_r_11.1.4_a16
 
-      - name: Fix
+      - name: Fix Kconfig
         run: |
-          chmod +x fix.sh
-          ./fix.sh
+          find . -type f -name "Kconfig*" | while read f; do
+            grep -E '^[[:space:]]*source[[:space:]]+"[^"]+"' "$f" | sed -E 's/^[[:space:]]*source[[:space:]]+"([^"]+)".*/\1/' | while read p; do
+              if [ -f "$p" ]; then
+                d=$(dirname "$p")
+                b=$(basename "$p")
+                echo "Converting: $p -> $d/$b"
+                rm -rf "$p"
+                mkdir -p "$d"
+                touch "$d/$b"
+              fi
+            done
+          done
 
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
