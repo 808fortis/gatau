@@ -1,6 +1,8 @@
 name: Build Kernel (MT6765)
 
 on:
+  push:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -21,10 +23,9 @@ jobs:
         run: |
           sed -i 's|source "block/foreground_io_opt/Kconfig"|source "block/foreground_io_opt"|g' block/Kconfig
           if [ ! -f block/foreground_io_opt/Kconfig ]; then
-            mkdir -p block/foreground_io_opt
             touch block/foreground_io_opt/Kconfig
           fi
-    
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
