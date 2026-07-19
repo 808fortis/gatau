@@ -41,9 +41,9 @@ jobs:
           config: oppo6765_defconfig
           arch: arm64
           android-version: 11
-          aosp-gcc: false
+          aosp-gcc: true
           aosp-clang: true
-          aosp-clang-version: r416183b
+          aosp-clang-version: r487747c
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
