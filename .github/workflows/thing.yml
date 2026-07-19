@@ -19,59 +19,30 @@ jobs:
           repository: oppo-source/android_kernel_oppo_mt6765
           ref: oppo/mt6765_r_11.1.4_a16
 
-      - name: Some fixes
+      - name: Auto dummy missing Kconfig sources
         run: |
-          rm -rf block/foreground_io_opt
-          mkdir -p block/foreground_io_opt
-          touch block/foreground_io_opt/Kconfig
-
-          rm -rf mm/oppo_healthinfo
-          mkdir -p mm/oppo_healthinfo
-          touch mm/oppo_healthinfo/Kconfig
-
-          rm -rf mm/multi_kswapd
-          mkdir -p mm/multi_kswapd
-          touch mm/multi_kswapd/Kconfig
-
-          rm -rf mm/malloc_track
-          mkdir -p mm/malloc_track/
-          touch mm/malloc_track/Kconfig.compat
-          
-          rm -rf mm/task_mem
-          mkdir -p mm/task_mem
-          touch mm/task_mem/Kconfig
-          
-          rm -rf drivers/base/power/owakelock
-          mkdir -p drivers/base/power/owakelock
-          touch drivers/base/power/owakelock/Kconfig
-
-          rm -rf net/sunrpc
-          mkdir -p net/sunrpc
-          touch net/sunrpc/Kconfig
-
-          rm -rf fs/ceph
-          mkdir -p fs/ceph
-          touch fs/ceph/Kconfig
-
-          rm -rf fs/cifs
-          mkdir -p fs/cifs
-          touch fs/cifs/Kconfig
-
-          rm -rf fs/coda
-          mkdir -p fs/coda
-          touch fs/coda/Kconfig
-
-          rm -rf fs/afs
-          mkdir -p fs/afs
-          touch fs/afs/Kconfig
-
-          rm -rf fs/9p
-          mkdir -p fs/9p
-          touch fs/9p/Kconfig
-
-          rm -rf fs/exfat
-          mkdir -p fs/exfat
-          touch fs/exfat/Kconfig
+          # Find all source statements in Kconfig files
+          find . -name "Kconfig*" -type f | while read -r kconfig; do
+            # Extract source paths
+            grep -E '^source\s+"[^"]+"' "$kconfig" | sed 's/^source\s+"\(.*\)"$/\1/' | while read -r src_path; do
+              # Resolve path relative to kernel root
+              if [[ "$src_path" =~ ^\.\. ]]; then
+                continue
+              fi
+              
+              # Get directory of the source
+              src_dir=$(dirname "$src_path")
+              src_file=$(basename "$src_path")
+              
+              # Check if the source file exists
+              if [[ ! -f "$src_path" ]]; then
+                echo "Creating dummy: $src_path"
+                rm -rf "$src_dir"
+                mkdir -p "$src_dir"
+                touch "$src_path"
+              fi
+            done
+          done
 
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
