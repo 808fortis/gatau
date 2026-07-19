@@ -21,10 +21,10 @@ jobs:
 
       - name: Auto dummy missing Kconfig sources
         run: |
-          # Find all source statements in Kconfig files
+          # Find all source statements and create dummy files
           find . -name "Kconfig*" -type f | while read -r kconfig; do
-            grep -E '^source\s+"[^"]+"' "$kconfig" | sed 's/^source\s+"\(.*\)"$/\1/' | while read -r src_path; do
-              # Skip invalid or root paths
+            grep -E '^source\s+"[^"]+"' "$kconfig" 2>/dev/null | sed 's/^source\s+"\(.*\)"$/\1/' | while read -r src_path; do
+              # Skip invalid paths
               if [[ "$src_path" == *".."* ]] || [[ "$src_path" == "Kconfig"* ]] || [[ "$src_path" =~ ^\. ]]; then
                 continue
               fi
@@ -33,8 +33,26 @@ jobs:
               if [[ ! -f "$src_path" ]]; then
                 echo "Creating dummy: $src_path"
                 src_dir=$(dirname "$src_path")
-                
-                # Only remove if directory exists and is not current dir
+                rm -rf "$src_dir"
+                mkdir -p "$src_dir"
+                touch "$src_path"
+              fi
+            done
+          done
+
+      - name: Build Kernel
+        uses: dabao1955/kernel_build_action@main
+        with:
+          kernel-url: ./
+          config: oppo6765_defconfig
+          arch: arm64
+          android-version: 11
+          aosp-gcc: true
+          aosp-clang: true
+          aosp-clang-version: r383902
+          anykernel3: true
+          release: true
+          access-token: ${{ secrets.GITHUB_TOKEN }}                # Only remove if directory exists and is not current dir
                 if [[ -d "$src_dir" ]] && [[ "$src_dir" != "." ]]; then
                   rm -rf "$src_dir" 2>/dev/null || true
                 fi
