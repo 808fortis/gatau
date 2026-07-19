@@ -18,15 +18,16 @@ jobs:
         with:
           repository: oppo-source/android_kernel_oppo_mt6765
           ref: oppo/mt6765_r_11.1.4_a16
+          path: kernel
 
-      - name: Fix Kconfig
+      - name: Fix Kconfig paths
         run: |
+          cd kernel
           find . -type f -name "Kconfig*" | while read f; do
             grep -E '^[[:space:]]*source[[:space:]]+"[^"]+"' "$f" | sed -E 's/^[[:space:]]*source[[:space:]]+"([^"]+)".*/\1/' | while read p; do
               if [ -f "$p" ]; then
                 d=$(dirname "$p")
                 b=$(basename "$p")
-                echo "Converting: $p -> $d/$b"
                 rm -rf "$p"
                 mkdir -p "$d"
                 touch "$d/$b"
@@ -34,10 +35,20 @@ jobs:
             done
           done
 
+      - name: Fix defconfig
+        run: |
+          cd kernel
+          if ! grep -q "CONFIG_64BIT=y" arch/arm64/configs/oppo6765_defconfig; then
+            echo "CONFIG_64BIT=y" >> arch/arm64/configs/oppo6765_defconfig
+          fi
+          if ! grep -q "CONFIG_ARM64=y" arch/arm64/configs/oppo6765_defconfig; then
+            echo "CONFIG_ARM64=y" >> arch/arm64/configs/oppo6765_defconfig
+          fi
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: ./
+          kernel-url: ./kernel/
           config: oppo6765_defconfig
           arch: arm64
           android-version: 11
@@ -47,3 +58,4 @@ jobs:
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
+          extra-args: ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
