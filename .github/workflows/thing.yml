@@ -25,6 +25,10 @@ jobs:
           mkdir -p block/foreground_io_opt
           touch block/foreground_io_opt/Kconfig
 
+          rm -rf mm/oppo_healthinfo
+          mkdir -p mm/oppo_healthinfo
+          touch mm/oppo_healthinfo/Kconfig
+
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
