@@ -8,7 +8,12 @@ jobs:
         sudo apt update
         sudo apt install -y bc bison flex libssl-dev make
 
-    - run: git clone --depth=1 -b kernel-4.19 https://github.com/oppo-source/oppo-kernel-source kernel
+    - name: Checkout kernel source
+      uses: actions/checkout@v4
+      with:
+        repository: oppo-source/android_kernel_oppo_mt6765
+        ref: oppo/mt6765_r_11.1.4_a16
+        path: kernel
 
     - name: Fix Kconfig sources
       run: |
