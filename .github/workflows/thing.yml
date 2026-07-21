@@ -24,3 +24,6 @@ jobs:
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          KCFLAGS: "-fcommon"
+          HOSTCFLAGS: "-fcommon"
