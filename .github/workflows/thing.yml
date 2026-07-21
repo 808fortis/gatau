@@ -6,28 +6,33 @@ jobs:
     steps:
     - run: |
         sudo apt update
-        sudo apt install -y bc bison flex libssl-dev make patch
-    - run: git clone --depth=1 -b surya-q-oss https://github.com/MiCode/Xiaomi_Kernel_OpenSource kernel
+        sudo apt install -y bc bison flex libssl-dev make
+
+    - run: git clone --depth=1 -b kernel-4.19 https://github.com/oppo-source/oppo-kernel-source kernel
+
+    - name: Fix Kconfig sources
+      run: |
+        cd kernel
+        find . -type f -name "Kconfig*" | while read f; do
+          grep -E '^[[:space:]]*source[[:space:]]+"[^"]+"' "$f" | sed -E 's/^[[:space:]]*source[[:space:]]+"([^"]+)".*/\1/' | while read p; do
+            if [ -f "$p" ]; then
+              d=$(dirname "$p")
+              b=$(basename "$p")
+              echo "Converting: $p -> $d/$b"
+              rm -rf "$p"
+              mkdir -p "$d"
+              touch "$d/$b"
+            fi
+          done
+        done
+
     - run: |
         mkdir -p tc
         cd tc
-        git clone --depth=1 -b android10-release https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-repo
-        mv clang-repo/clang-r353983c clang
-        git clone --depth=1 -b android10-release https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc
-    - run: |
-        cd kernel
-        curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
-    - run: |
-        cd kernel
-        curl -LSs "https://raw.githubusercontent.com/maxsteeel/nomount/master/kernel/patches/nomount_4.14_kernel_integration.patch" | patch -p1
-    - run: |
-        cd kernel
-        curl -LSs "https://gitlab.com/simonpunk/susfs4ksu/-/raw/kernel-4.14/kernel_patches/50_add_susfs_in_kernel-4.14.patch?ref_type=heads" | patch -p1
-    - run: |
-        cd kernel
-        echo "CONFIG_KSU=y" >> arch/arm64/configs/vendor/atoll_defconfig
-        echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/vendor/atoll_defconfig
-        echo "CONFIG_NOMOUNT=y" >> arch/arm64/configs/vendor/atoll_defconfig
+        git clone --depth=1 -b android11-release https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-repo
+        mv clang-repo/clang-r383902 clang
+        git clone --depth=1 -b android11-release https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc
+
     - run: |
         export ARCH=arm64
         export CROSS_COMPILE=$PWD/tc/gcc/bin/aarch64-linux-android-
@@ -38,8 +43,9 @@ jobs:
         export KBUILD_HOSTCFLAGS="-fcommon"
         cd kernel
         echo "HOSTCFLAGS += -fcommon" >> Makefile
-        make vendor/atoll_defconfig
+        make oppo6765_defconfig
         make -j$(nproc) HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" CC=clang LLVM=1 Image.gz-dtb
+
     - uses: actions/upload-artifact@v4
       with:
         name: kernel-image
