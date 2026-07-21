@@ -49,7 +49,7 @@ jobs:
         cd kernel
         echo "HOSTCFLAGS += -fcommon" >> Makefile
         make oppo6765_defconfig
-        make -j$(nproc) HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" CC=clang LLVM=1 LLVM_IAS=0 CFLAGS_KERNEL="-D__LINUX_ARM_ARCH__=8" Image.gz-dtb
+        make -j$(nproc) HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" CC=clang LLVM=1 LLVM_IAS=0 CFLAGS_KERNEL="-D__LINUX_ARM_ARCH__=8 -DCONFIG_64BIT -DCONFIG_ARM64" Image.gz-dtb
 
     - uses: actions/upload-artifact@v4
       with:
