@@ -1,29 +1,34 @@
 name: Build Kernel
-
 on:
   workflow_dispatch:
-
+  push:
 jobs:
-  build-kernel:
-    name: Build Kernel
+  build:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
     steps:
-      - name: Build
-        uses: dabao1955/kernel_build_action@main
-        with:
-          kernel-url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource
-          kernel-branch: surya-q-oss
-          config: vendor/atoll_defconfig
-          arch: arm64
-          android-version: 10
-          aosp-gcc: true
-          aosp-clang: true
-          aosp-clang-version: r353983c
-          anykernel3: true
-          release: true
-          access-token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          KCFLAGS: "-fcommon"
-          HOSTCFLAGS: "-fcommon"
+    - run: |
+        sudo apt update
+        sudo apt install -y bc bison flex libssl-dev make
+    - run: |
+        git clone --depth=1 -b surya-q-oss https://github.com/MiCode/Xiaomi_Kernel_OpenSource kernel
+    - run: |
+        mkdir -p tc
+        cd tc
+        git clone --depth=1 -b r353983c https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc
+    - run: |
+        export ARCH=arm64
+        export CROSS_COMPILE=$PWD/tc/gcc/bin/aarch64-linux-android-
+        export CLANG_TRIPLE=aarch64-linux-gnu-
+        export PATH=$PWD/tc/clang/bin:$PATH
+        export KCFLAGS="-fcommon"
+        export HOSTCFLAGS="-fcommon"
+        export KBUILD_HOSTCFLAGS="-fcommon"
+        cd kernel
+        echo "HOSTCFLAGS += -fcommon" >> Makefile
+        make vendor/atoll_defconfig
+        make -j$(nproc) HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" Image.gz-dtb
+    - uses: actions/upload-artifact@v4
+      with:
+        name: kernel-image
+        path: kernel/arch/arm64/boot/Image.gz-dtb
