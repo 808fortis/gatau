@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -12,14 +15,19 @@ jobs:
       matrix:
         include:
           - name: "KOWX712-KernelSU"
+            short_name: "KowSU"
             url: "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh"
           - name: "tiann-KernelSU"
+            short_name: "KernelSU"
             url: "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh"
           - name: "KernelSU-Next"
+            short_name: "KernelSU-Next"
             url: "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh"
           - name: "SukiSU-Ultra"
+            short_name: "SukiSU-Ultra"
             url: "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
           - name: "ReSukiSU"
+            short_name: "ReSukiSU"
             url: "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh"
 
     steps:
@@ -80,16 +88,35 @@ jobs:
       - name: Disable Defconfig Check
         run: |
           cd kernel
-          sed -i 's/check_defconfig//g' build/build.sh || true
-          sed -i 's/POST_DEFCONFIG_CMDS=check_defconfig//g' common/build.config.gki.aarch64 || true
+          echo "check_defconfig() { return 0; }" >> build/build.sh
+          find common/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
 
       - name: Build Kernel
         run: |
           cd kernel
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-      - name: Upload Kernel Artifact
-        uses: actions/upload-artifact@v4
+      - name: Package AnyKernel3
+        run: |
+          SUBLEVEL=$(grep -m1 "^SUBLEVEL =" kernel/common/Makefile | awk '{print $3}')
+          KERNEL_VER="5.10.${SUBLEVEL}"
+          echo "KERNEL_VER=${KERNEL_VER}" >> $GITHUB_ENV
+
+          git clone https://github.com/osm0sis/AnyKernel3 --depth=1 anykernel
+          cp kernel/out/android12-5.10/dist/Image anykernel/
+          cd anykernel
+          sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
+          zip -r9 "../GKI-android12-5.10-${{ matrix.short_name }}.zip" . -x ".git*" "README.md" "*placeholder"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: GKI-Kernel-Image-${{ matrix.name }}
-          path: kernel/out/android12-5.10/dist/Image*
+          tag_name: "v${{ env.KERNEL_VER }}-${{ github.run_number }}"
+          name: "GKI Kernel 5.10 Build - ${{ env.KERNEL_VER }}"
+          body: |
+            Kernel Version: ${{ env.KERNEL_VER }}
+            SuSFS: yes
+            ZeroMount: yes
+          files: "GKI-android12-5.10-${{ matrix.short_name }}.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
