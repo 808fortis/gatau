@@ -10,25 +10,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "KOWX712-KernelSU"
-            short_name: "KowSU"
-            url: "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh"
-          - name: "tiann-KernelSU"
-            short_name: "KernelSU"
-            url: "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh"
-          - name: "KernelSU-Next"
-            short_name: "KernelSU-Next"
-            url: "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh"
-          - name: "SukiSU-Ultra"
-            short_name: "SukiSU-Ultra"
-            url: "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-          - name: "ReSukiSU"
-            short_name: "ReSukiSU"
-            url: "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh"
 
     steps:
       - name: Maximize Build Space
@@ -55,7 +36,7 @@ jobs:
       - name: Setup KernelSU, SUSFS, and zeromount
         run: |
           cd kernel/common
-          curl -LSs "${{ matrix.url }}" | bash -
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -
           
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 susfs
           cp -r susfs/kernel_patches/fs/* fs/
@@ -106,7 +87,7 @@ jobs:
           cp kernel/out/android12-5.10/dist/Image anykernel/
           cd anykernel
           sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
-          zip -r9 "../GKI-android12-5.10-${{ matrix.short_name }}.zip" . -x ".git*" "README.md" "*placeholder"
+          zip -r9 "../GKI-android12-5.10-ReSukiSU.zip" . -x ".git*" "README.md" "*placeholder"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -117,6 +98,6 @@ jobs:
             Kernel Version: ${{ env.KERNEL_VER }}
             SuSFS: yes
             ZeroMount: yes
-          files: "GKI-android12-5.10-${{ matrix.short_name }}.zip"
+          files: "GKI-android12-5.10-ReSukiSU.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
