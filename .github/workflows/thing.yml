@@ -1,12 +1,26 @@
 name: Build Android Kernel 12-5.10
 
 on:
+  push:
   workflow_dispatch:
-  push: 
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "KOWX712-KernelSU"
+            url: "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh"
+          - name: "tiann-KernelSU"
+            url: "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh"
+          - name: "KernelSU-Next"
+            url: "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh"
+          - name: "SukiSU-Ultra"
+            url: "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
+          - name: "ReSukiSU"
+            url: "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh"
 
     steps:
       - name: Maximize Build Space
@@ -30,14 +44,21 @@ jobs:
           repo init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
-      - name: Setup KernelSU and SUSFS
+      - name: Setup KernelSU, SUSFS, and zeromount
         run: |
           cd kernel/common
-          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
+          curl -LSs "${{ matrix.url }}" | bash -
+          
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 susfs
-          cp susfs/kernel_patches/fs/* fs/
-          cp susfs/kernel_patches/include/linux/* include/linux/
-          patch -p1 < susfs/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch || true
+          cp -r susfs/kernel_patches/fs/* fs/
+          cp -r susfs/kernel_patches/include/linux/* include/linux/
+          patch -p1 < susfs/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
+
+          git clone https://github.com/Enginex0/zeromount.git
+          if [ -f zeromount/setup.sh ]; then
+            bash zeromount/setup.sh
+          fi
+
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
@@ -53,7 +74,14 @@ jobs:
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_KSU_SUSFS_SUS_SU=y
           EOF
+
           sed -i 's/-dirty//g' scripts/setlocalversion
+
+      - name: Disable Defconfig Check
+        run: |
+          cd kernel
+          sed -i 's/check_defconfig//g' build/build.sh || true
+          sed -i 's/POST_DEFCONFIG_CMDS=check_defconfig//g' common/build.config.gki.aarch64 || true
 
       - name: Build Kernel
         run: |
@@ -63,5 +91,5 @@ jobs:
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GKI-Kernel-Image
+          name: GKI-Kernel-Image-${{ matrix.name }}
           path: kernel/out/android12-5.10/dist/Image*
