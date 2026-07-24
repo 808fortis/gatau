@@ -1,57 +1,66 @@
-name: Build Kernel
-on: [push]
+name: Build Android Kernel 12-5.10
+
+on:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-22.04
+
     steps:
-    - run: |
-        sudo apt update
-        sudo apt install -y bc bison flex libssl-dev make
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 8192
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
 
-    - name: Checkout kernel source
-      uses: actions/checkout@v4
-      with:
-        repository: oppo-source/android_kernel_oppo_mt6765
-        ref: oppo/mt6765_r_11.1.4_a16
-        path: kernel
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev git repo python3 python-is-python3 libncurses-dev zip curl wget tar ccache patch
 
-    - name: Fix Kconfig sources
-      run: |
-        cd kernel
-        find . -type f -name "Kconfig*" | while read f; do
-          grep -E '^[[:space:]]*source[[:space:]]+"[^"]+"' "$f" | sed -E 's/^[[:space:]]*source[[:space:]]+"([^"]+)".*/\1/' | while read p; do
-            if [ -f "$p" ]; then
-              d=$(dirname "$p")
-              b=$(basename "$p")
-              echo "Converting: $p -> $d/$b"
-              rm -rf "$p"
-              mkdir -p "$d"
-              touch "$d/$b"
-            fi
-          done
-        done
+      - name: Sync Source Code
+        run: |
+          mkdir kernel && cd kernel
+          repo init --depth=1 -u https://android.googlesource.com/kernel/manifest -b android12-5.10
+          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
-    - run: |
-        mkdir -p tc
-        cd tc
-        git clone --depth=1 -b android11-release https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-repo
-        mv clang-repo/clang-r383902 clang
-        git clone --depth=1 -b android11-release https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 gcc
+      - name: Setup KernelSU and SUSFS
+        run: |
+          cd kernel/common
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.10 susfs
+          cp susfs/kernel_patches/fs/* fs/
+          cp susfs/kernel_patches/include/linux/* include/linux/
+          patch -p1 < susfs/kernel_patches/5.10/fs_inc.patch || true
+          cat <<EOF >> arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSUD=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME_RELEASE=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=y
+          EOF
+          sed -i 's/-dirty//g' scripts/setlocalversion
 
-    - run: |
-        export ARCH=arm64
-        export CROSS_COMPILE=$PWD/tc/gcc/bin/aarch64-linux-android-
-        export CLANG_TRIPLE=aarch64-linux-gnu-
-        export PATH=$PWD/tc/clang/bin:$PATH
-        export KCFLAGS="-fcommon"
-        export HOSTCFLAGS="-fcommon"
-        export KBUILD_HOSTCFLAGS="-fcommon"
-        cd kernel
-        echo "HOSTCFLAGS += -fcommon" >> Makefile
-        make oppo6765_defconfig
-        make -j$(nproc) HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" CC=clang LLVM=1 LLVM_IAS=0 CFLAGS_KERNEL="-D__LINUX_ARM_ARCH__=8 -DCONFIG_64BIT -DCONFIG_ARM64" Image.gz-dtb
+      - name: Build Kernel
+        run: |
+          cd kernel
+          BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: kernel-image
-        path: kernel/arch/arm64/boot/Image.gz-dtb
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GKI-Kernel-Image
+          path: kernel/out/android12-5.10/dist/Image*
