@@ -2,6 +2,7 @@ name: Build Android Kernel 12-5.10
 
 on:
   workflow_dispatch:
+  push: 
 
 jobs:
   build:
@@ -33,10 +34,10 @@ jobs:
         run: |
           cd kernel/common
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.10 susfs
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 susfs
           cp susfs/kernel_patches/fs/* fs/
           cp susfs/kernel_patches/include/linux/* include/linux/
-          patch -p1 < susfs/kernel_patches/5.10/fs_inc.patch || true
+          patch -p1 < susfs/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch || true
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
