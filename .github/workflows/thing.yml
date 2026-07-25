@@ -1,4 +1,4 @@
-name: Build AOSP 12-5.10 GKI Kernel with Repo
+name: Build Kernel
 
 on:
   workflow_dispatch:
@@ -15,6 +15,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: custom_files
+
+      - name: Set up Swap Space
+        uses: pierotofy/set-swap-space-action@master
+        with:
+          swap-size-gb: 10
+
+      - name: Cleanup
+        uses: rokibhasansagar/slimhub_actions@main
 
       - name: Setup Repo Tool
         run: |
@@ -55,11 +63,24 @@ jobs:
             fi
           fi
 
-      - name: Build Kernel
+      - name: Fix defconfig
         run: |
           cd android-kernel
           find common/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
-          export SKIP_DEFCONFIG_MATCH=1
+
+      - name: Commit Local Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "build: auto-commit local changes to avoid -dirty suffix"
+          fi
+
+      - name: Build Kernel
+        run: |
+          cd android-kernel
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
       - name: Upload Kernel Artifact
