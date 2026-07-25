@@ -35,7 +35,7 @@ jobs:
           echo "CONFIG_KPROBES=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
           echo "CONFIG_HAVE_KPROBES=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
           echo "CONFIG_KPROBE_EVENTS=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
-          sed -i 's/CONFIG_CC_STACKPROTECTOR_STRONG=y//g' ./kernel/arch/arm64/configs/angelica_defconfig
+          sed -i 's/CONFIG_CC_STACKPROTECTOR_STRONG=y//g' ./kernel/source/arch/arm64/configs/angelica_defconfig
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> ./kernel/arch/arm64/configs/angelica_defconfig
 
       - name: Fix defconfig
