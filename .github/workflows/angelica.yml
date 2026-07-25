@@ -36,7 +36,7 @@ jobs:
 
     - name: Setup Toolchains
       run: |
-        git clone --depth=1 https://github.com/steftim/kernel_xiaomi_angelican -b lineage-18.1 kernel
+        git clone --depth=1 https://github.com/steftim/kernel_xiaomi_angelican -b main kernel
         cd kernel
         git submodule update --init --recursive
         git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android11-release clang-base
