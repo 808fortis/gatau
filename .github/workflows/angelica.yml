@@ -1,67 +1,27 @@
-name: Build Kernel Non-GKI
+name: Build Kernel Angelica
 
 on:
   workflow_dispatch:
-  push:
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-  
-    runs-on: ubuntu-latest
-    
+  build-kernel:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
     steps:
-    
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-
-    - name: Free Up Disk Space
-      uses: jlumbroso/free-disk-space@main
-      with:
-        tool-cache: true
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-
-    - name: Setup Swap Space
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 10
-
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev libgmp-dev libmpc-dev libmpfr-dev
-
-    - name: Setup Toolchains
-      run: |
-        git clone --depth=1 https://github.com/steftim/kernel_xiaomi_angelican -b main kernel
-        cd kernel
-        git submodule update --init --recursive
-        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android11-release clang-base
-        mv clang-base/clang-r383902 clang
-        rm -rf clang-base
-
-    - name: Build Kernel
-      run: |
-        cd kernel
-        export PATH="$(pwd)/clang/bin:$PATH"
-        export ARCH=arm64
-        export SUBARCH=arm64
-        export KBUILD_BUILD_USER=builder
-        export KBUILD_BUILD_HOST=ubuntu
-        export CC=clang
-        export AR=llvm-ar
-        export NM=llvm-nm
-        export OBJCOPY=llvm-objcopy
-        export OBJDUMP=llvm-objdump
-        export STRIP=llvm-strip
-        make O=out angelica_defconfig
-        make O=out -j$(nproc --all) CC=clang LLVM=1 LLVM_IAS=1
-
-    - name: Upload Kernel Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Image.gz-dtb
-        path: kernel/out/arch/arm64/boot/Image.gz-dtb
+      - name: Build
+        uses: dabao1955/kernel_build_action@main
+        with:
+          kernel-url: https://github.com/steftim/kernel_xiaomi_angelica
+          kernel-branch: main
+          config: angelica_defconfig
+          arch: arm64
+          aosp-gcc: true
+          aosp-clang: true
+          android-version: 11
+          aosp-clang-version: r383902
+          anykernel3: true
+          release: true
+          access-token: ${{ secrets.GITHUB_TOKEN }}
