@@ -2,6 +2,7 @@ name: Build Kernel Angelica
 
 on:
   workflow_dispatch:
+  push:
 
 permissions:
   contents: write
@@ -22,6 +23,9 @@ jobs:
           aosp-clang: true
           android-version: 11
           aosp-clang-version: r383902
+          ksu: true
+          ksu-other: true
+          ksu-url: https://github.com/backslashxx/KernelSU
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
