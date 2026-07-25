@@ -72,8 +72,8 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
-          export KCFLAGS="-O2 -pipe -fno-plt -fno-semantic-interposition -fomit-frame-pointer -flto=thin"
-          export KCPPFLAGS="-O2 -pipe"
+          export KCFLAGS="-O3 -pipe -fno-plt -fno-semantic-interposition -fomit-frame-pointer"
+          export KCPPFLAGS="-O3 -pipe"
           export LDFLAGS_vmlinux="--no-keep-memory"
           
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
