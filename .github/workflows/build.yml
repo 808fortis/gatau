@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet
