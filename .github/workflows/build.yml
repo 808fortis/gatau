@@ -16,13 +16,6 @@ jobs:
         with:
           path: custom_files
 
-      - name: Set up Swap Space
-        run: |
-          sudo dd if=/dev/zero of=/swapfile bs=1M count=10240
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
       - name: Cleanup
         uses: rokibhasansagar/slimhub_actions@main
 
