@@ -42,25 +42,26 @@ jobs:
         git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android11-release clang-base
         mv clang-base/clang-r383902 clang
         rm -rf clang-base
-        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 aarch64-gcc
 
     - name: Build Kernel
       run: |
         cd kernel
-        export PATH="$(pwd)/clang/bin:$(pwd)/aarch64-gcc/bin:$PATH"
+        export PATH="$(pwd)/clang/bin:$PATH"
         export ARCH=arm64
         export SUBARCH=arm64
         export KBUILD_BUILD_USER=builder
         export KBUILD_BUILD_HOST=ubuntu
         export CC=clang
-        export CLANG_TRIPLE=aarch64-linux-gnu-
-        export CROSS_COMPILE=aarch64-linux-android-
+        export AR=llvm-ar
+        export NM=llvm-nm
+        export OBJCOPY=llvm-objcopy
+        export OBJDUMP=llvm-objdump
+        export STRIP=llvm-strip
         make O=out angelica_defconfig
-        make O=out -j$(nproc --all)
+        make O=out -j$(nproc --all) CC=clang LLVM=1 LLVM_IAS=1
 
     - name: Upload Kernel Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Image.gz-dtb
         path: kernel/out/arch/arm64/boot/Image.gz-dtb
-        
