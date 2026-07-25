@@ -22,28 +22,28 @@ jobs:
         with:
           repository: steftim/kernel_xiaomi_angelican
           ref: main
-          path: kernel
+          path: kernel/source
       
       - name: Apply KernelSU
-        working-directory: kernel
+        working-directory: kernel/source
         run: |
           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh" | bash -s
       
       - name: Patch defconfig
         run: |
-          echo "CONFIG_KSU=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
-          echo "CONFIG_KPROBES=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
-          echo "CONFIG_HAVE_KPROBES=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
-          echo "CONFIG_KPROBE_EVENTS=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
+          echo "CONFIG_KSU=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
+          echo "CONFIG_KPROBES=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
+          echo "CONFIG_HAVE_KPROBES=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
+          echo "CONFIG_KPROBE_EVENTS=y" >> ./kernel/source/arch/arm64/configs/angelica_defconfig
 
       - name: Fix defconfig
         run: |
-          find ./kernel/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
+          find ./kernel/source/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
 
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: ./kernel
+          kernel-url: ./kernel/source/
           config: angelica_defconfig
           arch: arm64
           aosp-gcc: true
