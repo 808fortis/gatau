@@ -15,7 +15,7 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/steftim/kernel_xiaomi_angelica
+          kernel-url: https://github.com/steftim/kernel_xiaomi_angelican
           kernel-branch: main
           config: angelica_defconfig
           arch: arm64
