@@ -37,7 +37,6 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
             for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
               if [ -f "$p" ]; then
-                echo "Patches: $p"
                 patch -p1 < "$p"
               fi
             done
@@ -73,6 +72,10 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
+          export KCFLAGS="-O3 -pipe -fno-plt -fno-semantic-interposition -fomit-frame-pointer -flto=thin"
+          export KCPPFLAGS="-O3 -pipe"
+          export LDFLAGS_vmlinux="--no-keep-memory"
+          
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
       - name: Upload Kernel Artifact
