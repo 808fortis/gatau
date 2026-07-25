@@ -1,0 +1,66 @@
+name: Build Kernel Non-GKI
+
+on:
+  workflow_dispatch:
+  on: push
+
+jobs:
+  build:
+  
+    runs-on: ubuntu-latest
+    
+    steps:
+    
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Free Up Disk Space
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+
+    - name: Setup Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 10
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev libgmp-dev libmpc-dev libmpfr-dev
+
+    - name: Setup Toolchains
+      run: |
+        git clone --depth=1 https://github.com/steftim/kernel_xiaomi_angelican -b lineage-18.1 kernel
+        cd kernel
+        git submodule update --init --recursive
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android11-release clang-base
+        mv clang-base/clang-r383902 clang
+        rm -rf clang-base
+        git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 aarch64-gcc
+
+    - name: Build Kernel
+      run: |
+        cd kernel
+        export PATH="$(pwd)/clang/bin:$(pwd)/aarch64-gcc/bin:$PATH"
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export KBUILD_BUILD_USER=builder
+        export KBUILD_BUILD_HOST=ubuntu
+        export CC=clang
+        export CLANG_TRIPLE=aarch64-linux-gnu-
+        export CROSS_COMPILE=aarch64-linux-android-
+        make O=out angelica_defconfig
+        make O=out -j$(nproc --all)
+
+    - name: Upload Kernel Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Image.gz-dtb
+        path: kernel/out/arch/arm64/boot/Image.gz-dtb
+        
