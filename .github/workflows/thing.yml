@@ -1,4 +1,4 @@
-name: Build AOSP 12-5.10 GKI Kernel with Repo
+name: Build Kernel
 
 on:
   workflow_dispatch:
@@ -58,6 +58,7 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
+          export SKIP_DEFCONFIG_MATCH=1
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
       - name: Upload Kernel Artifact
