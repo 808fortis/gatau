@@ -2,8 +2,7 @@ name: Build Kernel Non-GKI
 
 on:
   workflow_dispatch:
-  on:
-    push:
+  push:
 
 jobs:
   build:
