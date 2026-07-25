@@ -12,14 +12,20 @@ jobs:
     name: Build Kernel
     runs-on: ubuntu-22.04
     steps:
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: steftim/kernel_xiaomi_angelican
+          repository: steftim/kernel_xiaomi_angelica
           ref: main
           path: kernel
       
       - name: Apply KernelSU
+        working-directory: kernel
         run: |
           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh" | bash -s
       
@@ -30,7 +36,7 @@ jobs:
           echo "CONFIG_HAVE_KPROBES=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
           echo "CONFIG_KPROBE_EVENTS=y" >> ./kernel/arch/arm64/configs/angelica_defconfig
 
-       - name: Fix defconfig
+      - name: Fix defconfig
         run: |
           find ./kernel/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
 
@@ -40,7 +46,7 @@ jobs:
           kernel-url: ./kernel
           config: angelica_defconfig
           arch: arm64
-          aosp-gcc: true
+          aosp-gcc: false
           aosp-clang: true
           android-version: 11
           aosp-clang-version: r383902
