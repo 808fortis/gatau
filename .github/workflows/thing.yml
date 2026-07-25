@@ -1,144 +1,67 @@
-name: Build Android Kernel 12-5.10 CachyOS
+name: Build AOSP 12-5.10 GKI Kernel with Repo
 
 on:
-  push:
   workflow_dispatch:
-
-permissions:
-  contents: write
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-      - name: Maximize Build Space
-        uses: easimon/maximize-build-space@v10
+      - name: Checkout Custom Repo
+        uses: actions/checkout@v4
         with:
-          root-reserve-mb: 8192
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
+          path: custom_files
 
-      - name: Install Dependencies
+      - name: Setup Repo Tool
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev git repo python3 python-is-python3 libncurses-dev zip curl wget tar ccache patch
+          sudo apt-get install -y patch
+          sudo curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+x /usr/local/bin/repo
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
 
-      - name: Sync Source Code
+      - name: Repo Init and Sync
         run: |
-          mkdir kernel && cd kernel
-          repo init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10
-          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
+          mkdir -p android-kernel && cd android-kernel
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10
+          repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
-      - name: Apply Patches and Tweaks
+      - name: Apply All Patch Files
         run: |
-          cd kernel/common
-
-          git clone https://github.com/fire314/bore-scheduler.git --depth=1 bore
-          PATCH_FILE=""
-          if [ -d bore/patches/5.10 ]; then
-            PATCH_FILE=$(find bore/patches/5.10 -name "*.patch" | head -n 1)
-          elif [ -d bore/patches/5.15 ]; then
-            PATCH_FILE=$(find bore/patches/5.15 -name "*.patch" | head -n 1)
-          fi
-          if [ -n "$PATCH_FILE" ]; then
-            patch -p1 --fuzz=3 < "$PATCH_FILE" || true
-          fi
-          rm -rf bore
-
-          git clone https://github.com/hakavlad/mglru-for-5.10.git --depth=1 mglru || true
-          if [ -d mglru ]; then
-            patch -p1 < mglru/mglru.patch || true
-            rm -rf mglru
+          cd android-kernel/common
+          if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
+            for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
+              if [ -f "$p" ]; then
+                echo "Applying patch: $p"
+                patch -p1 < "$p"
+              fi
+            done
           fi
 
-          set_config() {
-            local key="$1"
-            local val="$2"
-            local file="arch/arm64/configs/gki_defconfig"
-
-            if grep -q "^${key}=" "$file"; then
-              sed -i "s|^${key}=.*|${key}=${val}|" "$file"
-            elif grep -q "^# ${key} is not set" "$file"; then
-              sed -i "s|^# ${key} is not set|${key}=${val}|" "$file"
-            else
-              echo "${key}=${val}" >> "$file"
+      - name: Merge All Custom Fragments
+        run: |
+          cd android-kernel
+          if [ -d "$GITHUB_WORKSPACE/custom_files/fragments" ]; then
+            FRAGMENTS=("$GITHUB_WORKSPACE/custom_files/fragments"/*.fragment)
+            if [ -f "${FRAGMENTS[0]}" ]; then
+              echo "Merging fragments: ${FRAGMENTS[*]}"
+              ARCH=arm64 common/scripts/kconfig/merge_config.sh -m common/arch/arm64/configs/gki_defconfig "${FRAGMENTS[@]}"
+              mv .config common/arch/arm64/configs/gki_defconfig
             fi
-          }
-
-          set_config "CONFIG_HZ_300" "y"
-          set_config "CONFIG_HZ" "300"
-          sed -i '/CONFIG_HZ_1000/d' arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_HZ_250/d' arch/arm64/configs/gki_defconfig
-
-          set_config "CONFIG_SCHED_BORE" "y"
-          set_config "CONFIG_PREEMPT" "y"
-          set_config "CONFIG_PREEMPT_COUNT" "y"
-          set_config "CONFIG_PREEMPTION" "y"
-          set_config "CONFIG_SCHED_AUTOGROUP" "y"
-
-          set_config "CONFIG_ZRAM" "y"
-          set_config "CONFIG_ZSMALLOC" "y"
-          set_config "CONFIG_ZRAM_DEF_COMP_LZ4" "y"
-          set_config "CONFIG_ZSTD_COMPRESS" "y"
-          set_config "CONFIG_ZSTD_DECOMPRESS" "y"
-          set_config "CONFIG_COMPACTION" "y"
-          set_config "CONFIG_MIGRATION" "y"
-          set_config "CONFIG_VM_EVENT_COUNTERS" "y"
-
-          set_config "CONFIG_MQ_IOSCHED_DEADLINE" "y"
-          set_config "CONFIG_MQ_IOSCHED_KYBER" "y"
-          set_config "CONFIG_IOSCHED_BFQ" "y"
-          set_config "CONFIG_BFQ_GROUP_IOSCHED" "y"
-          set_config "CONFIG_TCP_CONG_BBR" "y"
-          set_config "CONFIG_NET_SCH_FQ" "y"
-          set_config "CONFIG_DEFAULT_BBR" "y"
-
-          sed -i 's/-dirty//g' scripts/setlocalversion
-
-      - name: Disable Defconfig Check
-        run: |
-          cd kernel
-          echo "check_defconfig() { return 0; }" >> build/build.sh
-          find common/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
+          fi
 
       - name: Build Kernel
         run: |
-          cd kernel
-          export LTO=thin
-          export KCFLAGS="-O3"
+          cd android-kernel
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-      - name: Package AnyKernel3
-        run: |
-          SUBLEVEL=$(grep -m1 "^SUBLEVEL =" kernel/common/Makefile | awk '{print $3}')
-          KERNEL_VER="5.10.${SUBLEVEL}"
-          echo "KERNEL_VER=${KERNEL_VER}" >> $GITHUB_ENV
-
-          git clone https://github.com/osm0sis/AnyKernel3 --depth=1 anykernel
-          cp kernel/out/android12-5.10/dist/Image anykernel/
-          cd anykernel
-          sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
-          zip -r9 "../GKI-android12-5.10-CachyOS-300Hz.zip" . -x ".git*" "README.md" "*placeholder"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: "v${{ env.KERNEL_VER }}-${{ github.run_number }}"
-          name: "GKI Kernel 5.10 Build - ${{ env.KERNEL_VER }}"
-          body: |
-            Kernel Version: ${{ env.KERNEL_VER }}
-          files: "GKI-android12-5.10-CachyOS-300Hz.zip"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: GKI-Kernel-Artifacts
+          path: android-kernel/out/android12-5.10/dist/*
