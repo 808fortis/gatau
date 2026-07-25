@@ -11,15 +11,28 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+          df -h
+
       - name: Checkout Custom Repo
         uses: actions/checkout@v4
         with:
           path: custom_files
 
-      - name: Setup Repo Tool
+      - name: Install Dependencies & Setup Repo Tool
         run: |
           sudo apt-get update
-          sudo apt-get install -y patch
+          sudo apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev \
+            cpio rsync python3 python-is-python3 dwarves zip unzip patch git curl
+          
           sudo curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
           sudo chmod a+x /usr/local/bin/repo
           git config --global user.name "GitHub Actions"
@@ -37,7 +50,8 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
             for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
               if [ -f "$p" ]; then
-                patch -p1 < "$p"
+                echo "Applying patch: $p"
+                patch -p1 < "$p" || exit 1
               fi
             done
           fi
@@ -72,8 +86,6 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
-          export KCFLAGS="-flto=thin"
-          
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
       - name: Upload Kernel Artifact
