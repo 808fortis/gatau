@@ -28,8 +28,8 @@ jobs:
       - name: Repo Init and Sync
         run: |
           mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10
-          repo sync -c -j$(nproc) --no-tags --no-clone-bundle
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
+          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
       - name: Apply All Patch Files
         run: |
