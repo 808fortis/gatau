@@ -1,4 +1,4 @@
-name: Build Android Kernel 12-5.10
+name: Build Android Kernel 12-5.10 CachyOS
 
 on:
   push:
@@ -41,36 +41,69 @@ jobs:
           repo init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
-      - name: Setup KernelSU, SUSFS, and zeromount
+      - name: Apply Patches and Tweaks
         run: |
           cd kernel/common
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -
-          
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 susfs
-          cp -r susfs/kernel_patches/fs/* fs/
-          cp -r susfs/kernel_patches/include/linux/* include/linux/
-          patch -p1 < susfs/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
 
-          git clone https://github.com/Enginex0/zeromount.git
-          if [ -f zeromount/setup.sh ]; then
-            bash zeromount/setup.sh
+          git clone https://github.com/fire314/bore-scheduler.git --depth=1 bore
+          PATCH_FILE=""
+          if [ -d bore/patches/5.10 ]; then
+            PATCH_FILE=$(find bore/patches/5.10 -name "*.patch" | head -n 1)
+          elif [ -d bore/patches/5.15 ]; then
+            PATCH_FILE=$(find bore/patches/5.15 -name "*.patch" | head -n 1)
+          fi
+          if [ -n "$PATCH_FILE" ]; then
+            patch -p1 --fuzz=3 < "$PATCH_FILE" || true
+          fi
+          rm -rf bore
+
+          git clone https://github.com/hakavlad/mglru-for-5.10.git --depth=1 mglru || true
+          if [ -d mglru ]; then
+            patch -p1 < mglru/mglru.patch || true
+            rm -rf mglru
           fi
 
-          cat <<EOF >> arch/arm64/configs/gki_defconfig
-          CONFIG_KSU=y
-          CONFIG_KSU_SUSFS=y
-          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_PATH=y
-          CONFIG_KSU_SUSFS_SUS_MOUNT=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSUD=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
-          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-          CONFIG_KSU_SUSFS_SPOOF_UNAME_RELEASE=y
-          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_KSU_SUSFS_SUS_SU=y
-          EOF
+          set_config() {
+            local key="$1"
+            local val="$2"
+            local file="arch/arm64/configs/gki_defconfig"
+
+            if grep -q "^${key}=" "$file"; then
+              sed -i "s|^${key}=.*|${key}=${val}|" "$file"
+            elif grep -q "^# ${key} is not set" "$file"; then
+              sed -i "s|^# ${key} is not set|${key}=${val}|" "$file"
+            else
+              echo "${key}=${val}" >> "$file"
+            fi
+          }
+
+          set_config "CONFIG_HZ_300" "y"
+          set_config "CONFIG_HZ" "300"
+          sed -i '/CONFIG_HZ_1000/d' arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_HZ_250/d' arch/arm64/configs/gki_defconfig
+
+          set_config "CONFIG_SCHED_BORE" "y"
+          set_config "CONFIG_PREEMPT" "y"
+          set_config "CONFIG_PREEMPT_COUNT" "y"
+          set_config "CONFIG_PREEMPTION" "y"
+          set_config "CONFIG_SCHED_AUTOGROUP" "y"
+
+          set_config "CONFIG_ZRAM" "y"
+          set_config "CONFIG_ZSMALLOC" "y"
+          set_config "CONFIG_ZRAM_DEF_COMP_LZ4" "y"
+          set_config "CONFIG_ZSTD_COMPRESS" "y"
+          set_config "CONFIG_ZSTD_DECOMPRESS" "y"
+          set_config "CONFIG_COMPACTION" "y"
+          set_config "CONFIG_MIGRATION" "y"
+          set_config "CONFIG_VM_EVENT_COUNTERS" "y"
+
+          set_config "CONFIG_MQ_IOSCHED_DEADLINE" "y"
+          set_config "CONFIG_MQ_IOSCHED_KYBER" "y"
+          set_config "CONFIG_IOSCHED_BFQ" "y"
+          set_config "CONFIG_BFQ_GROUP_IOSCHED" "y"
+          set_config "CONFIG_TCP_CONG_BBR" "y"
+          set_config "CONFIG_NET_SCH_FQ" "y"
+          set_config "CONFIG_DEFAULT_BBR" "y"
 
           sed -i 's/-dirty//g' scripts/setlocalversion
 
@@ -83,6 +116,8 @@ jobs:
       - name: Build Kernel
         run: |
           cd kernel
+          export LTO=thin
+          export KCFLAGS="-O3"
           BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
       - name: Package AnyKernel3
@@ -95,7 +130,7 @@ jobs:
           cp kernel/out/android12-5.10/dist/Image anykernel/
           cd anykernel
           sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
-          zip -r9 "../GKI-android12-5.10-ReSukiSU.zip" . -x ".git*" "README.md" "*placeholder"
+          zip -r9 "../GKI-android12-5.10-CachyOS-300Hz.zip" . -x ".git*" "README.md" "*placeholder"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -104,8 +139,6 @@ jobs:
           name: "GKI Kernel 5.10 Build - ${{ env.KERNEL_VER }}"
           body: |
             Kernel Version: ${{ env.KERNEL_VER }}
-            SuSFS: yes
-            ZeroMount: yes
-          files: "GKI-android12-5.10-ReSukiSU.zip"
+          files: "GKI-android12-5.10-CachyOS-300Hz.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
