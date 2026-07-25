@@ -16,9 +16,6 @@ jobs:
         with:
           path: custom_files
 
-      - name: Cleanup
-        uses: rokibhasansagar/slimhub_actions@main
-
       - name: Setup Repo Tool
         run: |
           sudo apt-get update
@@ -40,6 +37,7 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
             for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
               if [ -f "$p" ]; then
+                echo "Patches: $p"
                 patch -p1 < "$p"
               fi
             done
