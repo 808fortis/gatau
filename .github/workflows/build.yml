@@ -17,9 +17,11 @@ jobs:
           path: custom_files
 
       - name: Set up Swap Space
-        uses: pierotofy/set-swap-space-action@master
-        with:
-          swap-size-gb: 10
+        run: |
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
 
       - name: Cleanup
         uses: rokibhasansagar/slimhub_actions@main
@@ -45,7 +47,6 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
             for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
               if [ -f "$p" ]; then
-                echo "Applying patch: $p"
                 patch -p1 < "$p"
               fi
             done
@@ -57,7 +58,6 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/custom_files/fragments" ]; then
             FRAGMENTS=("$GITHUB_WORKSPACE/custom_files/fragments"/*.fragment)
             if [ -f "${FRAGMENTS[0]}" ]; then
-              echo "Merging fragments: ${FRAGMENTS[*]}"
               ARCH=arm64 common/scripts/kconfig/merge_config.sh -m common/arch/arm64/configs/gki_defconfig "${FRAGMENTS[@]}"
               mv .config common/arch/arm64/configs/gki_defconfig
             fi
@@ -72,7 +72,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
+          
+          cd android-kernel/common
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "build: auto-commit local changes to avoid -dirty suffix"
@@ -86,5 +87,5 @@ jobs:
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GKI-Kernel-Artifacts
+          name: kernel
           path: android-kernel/out/android12-5.10/dist/*
