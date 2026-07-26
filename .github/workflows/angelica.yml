@@ -15,8 +15,8 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: dandelion64-Archives/android_kernel_xiaomi_dandelion
-          ref: android-10.0
+          repository: Iam-nishan/Jujutsu-kernel
+          ref: vanilla
           path: kernel/source
 
       - name: Checkout Custom Repo
@@ -30,19 +30,19 @@ jobs:
 
       - name: Fix defconfig
         run: |
-          cp "$GITHUB_WORKSPACE/custom_files/angelica/angelica_defconfig" ./kernel/source/arch/arm64/configs/
+          cp "$GITHUB_WORKSPACE/custom_files/angelica/blossom_defconfig" ./kernel/source/arch/arm64/configs/
           find ./kernel/source/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
 
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: ./kernel/source/
-          config: angelica_defconfig
+          config: blossom_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
-          android-version: 10
-          aosp-clang-version: r353983c
+          android-version: 11
+          aosp-clang-version: r383902
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
