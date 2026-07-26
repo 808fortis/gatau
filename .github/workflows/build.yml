@@ -46,14 +46,20 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
-      - name: Setup ReSukiSU & SuSFS
+      - name: Setup ReSukiSU & SuSFS & NoMount
         run: |
           cd android-kernel/common
+          # ReSukiSU
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          # SuSFS
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
           cp ../susfs4ksu/kernel_patches/fs/* fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* include/linux/
           patch -p1 < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
+          # NoMount
+          git clone https://github.com/maxsteeel/nomount ../nomount
+          patch -p1 < ../nomount/kernel/patches/nomount_5.10_kernel_integration.patch
+          cp ../nomount/kernel/src/* fs
 
       - name: Apply All Patch Files
         run: |
@@ -98,7 +104,7 @@ jobs:
         run: |
           cd android-kernel
           LTO=thin MLGO=true BOULT_PROFILE=true BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
-          cp android-kernel/out/android12-5.10/dist/Image "$GITHUB_WORKSPACE/custom_files/anykernel3"
+          cp android-kernel/common/arch/arm64/boot/Image "$GITHUB_WORKSPACE/custom_files/anykernel3"
 
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4

@@ -33,6 +33,17 @@ jobs:
           cp "$GITHUB_WORKSPACE/custom_files/angelica/blossom_defconfig" ./kernel/source/arch/arm64/configs/
           find ./kernel/source/ -type f -name "build.config*" -exec sed -i 's/check_defconfig//g' {} +
 
+      - name: Commit Local Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          cd android-kernel/common
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "build: auto-commit local changes to avoid -dirty suffix"
+          fi
+
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
