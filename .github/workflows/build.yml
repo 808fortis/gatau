@@ -3,16 +3,6 @@ name: Build Kernel
 on:
   workflow_dispatch:
     inputs:
-      ksu_type:
-        description: 'Select KernelSU Variant'
-        required: true
-        type: choice
-        options:
-          - ReSukiSU
-          - KernelSU-Next
-          - KernelSU
-          - KowSU
-        default: ReSukiSU
       susfs:
         description: 'Enable SuSFS'
         required: true
@@ -23,10 +13,17 @@ on:
         required: true
         type: boolean
         default: true
+  push:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        ksu_type: [ReSukiSU, KernelSU-Next, KernelSU, KowSU]
     steps:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
@@ -56,34 +53,43 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
-      - name: Setup KernelSU, SuSFS, and NoMount
+      - name: Extract Kernel Version
+        run: |
+          cd android-kernel/common
+          VERSION=$(grep "^VERSION =" Makefile | awk '{print $3}')
+          PATCHLEVEL=$(grep "^PATCHLEVEL =" Makefile | awk '{print $3}')
+          SUBLEVEL=$(grep "^SUBLEVEL =" Makefile | awk '{print $3}')
+          EXTRAVERSION=$(grep "^EXTRAVERSION =" Makefile | awk '{print $3}')
+          echo "KERNEL_VERSION=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION" >> $GITHUB_ENV
+
+      - name: Setup KernelSU, SuSFS, and Mount Options
         run: |
           cd android-kernel/common
           
-          if [ "${{ github.event.inputs.ksu_type }}" == "ReSukiSU" ]; then
+          if [ "${{ matrix.ksu_type }}" == "ReSukiSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
-          elif [ "${{ github.event.inputs.ksu_type }}" == "KernelSU-Next" ]; then
+          elif [ "${{ matrix.ksu_type }}" == "KernelSU-Next" ]; then
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s stable
-          elif [ "${{ github.event.inputs.ksu_type }}" == "KernelSU" ]; then
+          elif [ "${{ matrix.ksu_type }}" == "KernelSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-          elif [ "${{ github.event.inputs.ksu_type }}" == "KowSU" ]; then
+          elif [ "${{ matrix.ksu_type }}" == "KowSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
           fi
           
-          if [ "${{ github.event.inputs.susfs }}" == "true" ]; then
+          if [ "${{ github.event.inputs.susfs }}" != "false" ]; then
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
             cp -r ../susfs4ksu/kernel_patches/fs/* fs/
             cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
             patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
           fi
 
-          if [ "${{ github.event.inputs.nomount }}" == "true" ]; then
+          if [ "${{ github.event.inputs.nomount }}" != "false" ]; then
             git clone https://github.com/maxsteeel/nomount ../nomount
             patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
             cp -r ../nomount/kernel/src/* fs/
           fi
 
-      - name: Merge Fragment
+      - name: Merge Custom Fragment
         run: |
           cd android-kernel
           FRAGMENT_FILE="$GITHUB_WORKSPACE/main_repo/fragments/custom.fragment"
@@ -117,8 +123,20 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/main_repo/anykernel3"
           find out/ -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/main_repo/anykernel3/" \;
 
-      - name: Upload Kernel Artifact
-        uses: actions/upload-artifact@v4
+      - name: Package AnyKernel3
+        run: |
+          cd $GITHUB_WORKSPACE/main_repo/anykernel3
+          zip -r9 "$GITHUB_WORKSPACE/AK3-5.10-${{ matrix.ksu_type }}.zip" ./*
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: AK3-5.10-${{ github.event.inputs.ksu_type }}
-          path: main_repo/anykernel3/
+          tag_name: "v${{ env.KERNEL_VERSION }}-${{ github.run_id }}"
+          name: "Kernel v${{ env.KERNEL_VERSION }}"
+          body: |
+            Kernel version: ${{ env.KERNEL_VERSION }}
+            SuSFS: ${{ github.event.inputs.susfs || 'true' }}
+            NoMount: ${{ github.event.inputs.nomount || 'true' }}
+          files: AK3-5.10-${{ matrix.ksu_type }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
