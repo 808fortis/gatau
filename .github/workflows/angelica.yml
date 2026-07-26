@@ -26,7 +26,7 @@ jobs:
           
       - name: KernelSU (backslashxx) support
         run: |
-          CD ./kernel/source && curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
+          cd ./kernel/source && curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
 
       - name: Fix defconfig
         run: |
