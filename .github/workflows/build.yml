@@ -104,7 +104,7 @@ jobs:
         run: |
           cd android-kernel
           LTO=thin MLGO=true BOULT_PROFILE=true BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
-          find android-kernel/out/android12-5.10/dist -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/custom_files/anykernel3" \;
+          find out/android12-5.10/dist -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/custom_files/anykernel3" \;
 
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
