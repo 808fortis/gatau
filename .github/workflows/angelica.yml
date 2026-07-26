@@ -27,7 +27,6 @@ jobs:
       - name: Some fix
         run: |
           cp "$GITHUB_WORKSPACE/custom_files/angelica/DrvGen.py" ./kernel/source/tools/dct
-          
 
       - name: Build
         uses: dabao1955/kernel_build_action@main
