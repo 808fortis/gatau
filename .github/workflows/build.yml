@@ -1,4 +1,4 @@
-name: Build Kernel
+Name: Build Kernel Matrix
 
 on:
   workflow_dispatch:
@@ -6,6 +6,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: "common-android12-5.10"
+            susfs_branch: "gki-android12-5.10"
+            susfs_patch: "50_add_susfs_in_gki-android12-5.10.patch"
+            nomount_patch: "nomount_5.10_kernel_integration.patch"
+            out_dir: "android12-5.10"
+          - branch: "common-android13-5.10"
+            susfs_branch: "gki-android13-5.10"
+            susfs_patch: "50_add_susfs_in_gki-android13-5.10.patch"
+            nomount_patch: "nomount_5.10_kernel_integration.patch"
+            out_dir: "android13-5.10"
+          - branch: "common-android13-5.15"
+            susfs_branch: "gki-android13-5.15"
+            susfs_patch: "50_add_susfs_in_gki-android13-5.15.patch"
+            nomount_patch: "nomount_5.15_kernel_integration.patch"
+            out_dir: "android13-5.15"
+          - branch: "common-android14-5.15"
+            susfs_branch: "gki-android14-5.15"
+            susfs_patch: "50_add_susfs_in_gki-android14-5.15.patch"
+            nomount_patch: "nomount_5.15_kernel_integration.patch"
+            out_dir: "android13-5.15"
+          - branch: "common-android14-6.1"
+            susfs_branch: "gki-android14-6.1"
+            susfs_patch: "50_add_susfs_in_gki-android14-6.1.patch"
+            nomount_patch: "nomount_6.1_kernel_integration.patch"
+            out_dir: "android14-6.1"
+          - branch: "common-android15-6.6"
+            susfs_branch: "gki-android15-6.6"
+            susfs_patch: "50_add_susfs_in_gki-android15-6.6.patch"
+            nomount_patch: "nomount_6.6_kernel_integration.patch"
+            out_dir: "android15-6.6"
+          - branch: "common-android16-6.12"
+            susfs_branch: "gki-android16-6.12"
+            susfs_patch: "50_add_susfs_in_gki-android16-6.12.patch"
+            nomount_patch: "nomount_6.12_kernel_integration.patch"
+            out_dir: "android16-6.12"
 
     steps:
       - name: Set Swap Space
@@ -26,7 +65,7 @@ jobs:
       - name: Checkout Custom Repo
         uses: actions/checkout@v4
         with:
-          path: custom_files
+          path: main_repo
 
       - name: Install Dependencies & Setup Repo Tool
         run: |
@@ -43,7 +82,7 @@ jobs:
       - name: Repo Init and Sync
         run: |
           mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
+          repo init -u https://android.googlesource.com/kernel/manifest -b ${{ matrix.branch }} --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
       - name: Setup ReSukiSU & SuSFS & NoMount
@@ -51,37 +90,32 @@ jobs:
           cd android-kernel/common
           # ReSukiSU
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          
           # SuSFS
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
-          cp ../susfs4ksu/kernel_patches/fs/* fs/
-          cp ../susfs4ksu/kernel_patches/include/linux/* include/linux/
-          patch -p1 < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
-          # NoMount
-          git clone https://github.com/maxsteeel/nomount ../nomount
-          patch -p1 < ../nomount/kernel/patches/nomount_5.10_kernel_integration.patch
-          cp ../nomount/kernel/src/* fs
-
-      - name: Apply All Patch Files
-        run: |
-          cd android-kernel/common
-          if [ -d "$GITHUB_WORKSPACE/custom_files/patches" ]; then
-            for p in "$GITHUB_WORKSPACE/custom_files/patches"/*.patch; do
-              if [ -f "$p" ]; then
-                echo "Applying patch: $p"
-                patch -p1 < "$p" || exit 1
-              fi
-            done
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b ${{ matrix.susfs_branch }} ../susfs4ksu
+          cp ../susfs4ksu/kernel_patches/fs/* fs/ 2>/dev/null || true
+          cp ../susfs4ksu/kernel_patches/include/linux/* include/linux/ 2>/dev/null || true
+          
+          if [ -f "../susfs4ksu/kernel_patches/${{ matrix.susfs_patch }}" ]; then
+            patch -p1 < "../susfs4ksu/kernel_patches/${{ matrix.susfs_patch }}"
           fi
 
-      - name: Merge All Custom Fragments
+          # NoMount
+          git clone https://github.com/maxsteeel/nomount ../nomount
+          if [ -f "../nomount/kernel/patches/${{ matrix.nomount_patch }}" ]; then
+            patch -p1 < "../nomount/kernel/patches/${{ matrix.nomount_patch }}"
+          fi
+          cp ../nomount/kernel/src/* fs/ 2>/dev/null || true
+
+      - name: Merge Custom Fragment
         run: |
           cd android-kernel
-          if [ -d "$GITHUB_WORKSPACE/custom_files/fragments" ]; then
-            FRAGMENTS=("$GITHUB_WORKSPACE/custom_files/fragments"/*.fragment)
-            if [ -f "${FRAGMENTS[0]}" ]; then
-              ARCH=arm64 common/scripts/kconfig/merge_config.sh -m common/arch/arm64/configs/gki_defconfig "${FRAGMENTS[@]}"
-              mv .config common/arch/arm64/configs/gki_defconfig
-            fi
+          FRAGMENT_FILE="$GITHUB_WORKSPACE/main_repo/fragments/custom.fragment"
+          
+          if [ -f "$FRAGMENT_FILE" ]; then
+            echo "Merging fragment: $FRAGMENT_FILE"
+            ARCH=arm64 common/scripts/kconfig/merge_config.sh -m common/arch/arm64/configs/gki_defconfig "$FRAGMENT_FILE"
+            mv .config common/arch/arm64/configs/gki_defconfig
           fi
 
       - name: Fix defconfig
@@ -103,11 +137,13 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
-          LTO=thin MLGO=true BOULT_PROFILE=true BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
-          find out/android12-5.10/dist -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/custom_files/anykernel3" \;
+          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+          
+          mkdir -p "$GITHUB_WORKSPACE/main_repo/anykernel3"
+          find out/ -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/main_repo/anykernel3/" \;
 
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AK3-5.10-kernel
-          path: custom_files/anykernel3/
+          name: AK3-${{ matrix.branch }}-ReSukiSU
+          path: main_repo/anykernel3/

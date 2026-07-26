@@ -30,16 +30,6 @@ PATCH_VBMETA_FLAG=auto;
 # import functions/variables and setup patching - see for reference (DO NOT REMOVE)
 . tools/ak3-core.sh
 
-# check kernel version
-KERNEL_VERSION=$(uname -r)
-
-if [[ "$KERNEL_VERSION" == 5.10.* ]]; then
-    ui_print "- $KERNEL_VERSION"
-else
-    ui_print "- Kernel version must be 5.10.*!"
-    exit 1
-fi
-
 # boot install
 if [ -L "/dev/block/bootdevice/by-name/init_boot_a" -o -L "/dev/block/by-name/init_boot_a" ]; then
     split_boot # for devices with init_boot ramdisk
