@@ -12,10 +12,29 @@ jobs:
     name: Build Kernel
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: MiCode/Xiaomi_Kernel_OpenSource
+          ref: dandelion-q-oss
+          path: kernel/source
+
+      - name: Fix syntax in DrvGen.py
+        run: |
+          python3 -c "
+          path = 'tools/dct/DrvGen.py'
+          with open(path, 'r') as f:
+              content = f.read()
+          import re
+          fixed = re.sub(r'print\s+([^\(\n]+)', r'print(\1)', content)
+          with open(path, 'w') as f:
+              f.write(fixed)
+          "
+
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/MiCode/Xiaomi_Kernel_OpenSource
+          kernel-url: ./kernel/source/
           kernel-branch: dandelion-q-oss
           config: angelica_defconfig
           arch: arm64
