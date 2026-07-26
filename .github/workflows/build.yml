@@ -1,4 +1,4 @@
-Name: Build Kernel Matrix
+name: Build Kernel Matrix
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
             susfs_branch: "gki-android14-5.15"
             susfs_patch: "50_add_susfs_in_gki-android14-5.15.patch"
             nomount_patch: "nomount_5.15_kernel_integration.patch"
-            out_dir: "android13-5.15"
+            out_dir: "android14-5.15"
           - branch: "common-android14-6.1"
             susfs_branch: "gki-android14-6.1"
             susfs_patch: "50_add_susfs_in_gki-android14-6.1.patch"
@@ -85,27 +85,25 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b ${{ matrix.branch }} --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
-      - name: Setup ReSukiSU & SuSFS & NoMount
+      - name: Setup ReSukiSU, SuSFS, and NoMount
         run: |
           cd android-kernel/common
-          # ReSukiSU
+          
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
           
-          # SuSFS
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b ${{ matrix.susfs_branch }} ../susfs4ksu
-          cp ../susfs4ksu/kernel_patches/fs/* fs/ 2>/dev/null || true
-          cp ../susfs4ksu/kernel_patches/include/linux/* include/linux/ 2>/dev/null || true
+          cp -r ../susfs4ksu/kernel_patches/fs/* fs/ 2>/dev/null || true
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/ 2>/dev/null || true
           
           if [ -f "../susfs4ksu/kernel_patches/${{ matrix.susfs_patch }}" ]; then
             patch -p1 < "../susfs4ksu/kernel_patches/${{ matrix.susfs_patch }}"
           fi
 
-          # NoMount
           git clone https://github.com/maxsteeel/nomount ../nomount
           if [ -f "../nomount/kernel/patches/${{ matrix.nomount_patch }}" ]; then
             patch -p1 < "../nomount/kernel/patches/${{ matrix.nomount_patch }}"
           fi
-          cp ../nomount/kernel/src/* fs/ 2>/dev/null || true
+          cp -r ../nomount/kernel/src/* fs/ 2>/dev/null || true
 
       - name: Merge Custom Fragment
         run: |
@@ -113,7 +111,6 @@ jobs:
           FRAGMENT_FILE="$GITHUB_WORKSPACE/main_repo/fragments/custom.fragment"
           
           if [ -f "$FRAGMENT_FILE" ]; then
-            echo "Merging fragment: $FRAGMENT_FILE"
             ARCH=arm64 common/scripts/kconfig/merge_config.sh -m common/arch/arm64/configs/gki_defconfig "$FRAGMENT_FILE"
             mv .config common/arch/arm64/configs/gki_defconfig
           fi
