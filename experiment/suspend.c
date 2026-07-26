@@ -11,7 +11,6 @@
 #define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/string.h>
-#include <linux/rtc.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -826,7 +825,7 @@ int pm_suspend(suspend_state_t state)
 	
 	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
 	//WuWeiZhong@BSP.Power.Basic, 2020/10/29, add for print suspend entry/exit time.
-	print_utc_time("PM: suspend entry");
+	//print_utc_time("PM: suspend entry");
 	#endif/*OPLUS_FEATURE_POWERINFO_STANDBY*/
 	
 	error = enter_state(state);
