@@ -2,17 +2,6 @@ name: Build Kernel
 
 on:
   workflow_dispatch:
-    inputs:
-      susfs:
-        description: 'Enable SuSFS'
-        required: true
-        type: boolean
-        default: true
-      nomount:
-        description: 'Enable NoMount'
-        required: true
-        type: boolean
-        default: true
   push:
 
 jobs:
@@ -23,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ksu_type: [ReSukiSU, KernelSU-Next, KernelSU, KowSU]
+        ksu_type: [ReSukiSU, KernelSU-Next, KernelSU, KowSU, xxKSU]
     steps:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
@@ -35,7 +24,7 @@ jobs:
         with:
           path: main_repo
 
-      - name: Install Dependencies & Setup Repo Tool
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -47,22 +36,13 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Repo Init and Sync
+      - name: Sync Repo
         run: |
           mkdir -p android-kernel && cd android-kernel
-          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
+          repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10-lts --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
-      - name: Extract Kernel Version
-        run: |
-          cd android-kernel/common
-          VERSION=$(grep "^VERSION =" Makefile | awk '{print $3}')
-          PATCHLEVEL=$(grep "^PATCHLEVEL =" Makefile | awk '{print $3}')
-          SUBLEVEL=$(grep "^SUBLEVEL =" Makefile | awk '{print $3}')
-          EXTRAVERSION=$(grep "^EXTRAVERSION =" Makefile | awk '{print $3}')
-          echo "KERNEL_VERSION=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION" >> $GITHUB_ENV
-
-      - name: Setup KernelSU, SuSFS, and Mount Options
+      - name: Patching kernel
         run: |
           cd android-kernel/common
           
@@ -74,20 +54,24 @@ jobs:
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           elif [ "${{ matrix.ksu_type }}" == "KowSU" ]; then
             curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
+          elif [ "${{ matrix.ksu_type }}" == "xxKSU" ]; then
+            curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh" | bash
           fi
           
-          if [ "${{ github.event.inputs.susfs }}" != "false" ]; then
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
-            cp -r ../susfs4ksu/kernel_patches/fs/* fs/
-            cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
-            patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
-          fi
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
+          cp -r ../susfs4ksu/kernel_patches/fs/* fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
+          patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
 
-          if [ "${{ github.event.inputs.nomount }}" != "false" ]; then
-            git clone https://github.com/maxsteeel/nomount ../nomount
-            patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
-            cp -r ../nomount/kernel/src/* fs/
-          fi
+          git clone https://github.com/maxsteeel/nomount ../nomount
+          patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
+          cp -r ../nomount/kernel/src/* fs/
+
+          VERSION=$(grep "^VERSION =" Makefile | awk '{print $3}')
+          PATCHLEVEL=$(grep "^PATCHLEVEL =" Makefile | awk '{print $3}')
+          SUBLEVEL=$(grep "^SUBLEVEL =" Makefile | awk '{print $3}')
+          EXTRAVERSION=$(grep "^EXTRAVERSION =" Makefile | awk '{print $3}')
+          echo "KERNEL_VERSION=$VERSION.$PATCHLEVEL.$SUBLEVEL$EXTRAVERSION" >> $GITHUB_ENV
 
       - name: Merge Custom Fragment
         run: |
@@ -121,7 +105,7 @@ jobs:
           FIXED_DATE="Mon Jan  1 00:00:00 UTC 2024"
           export KBUILD_BUILD_TIMESTAMP="$FIXED_DATE"
           LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
-          
+
           mkdir -p "$GITHUB_WORKSPACE/main_repo/anykernel3"
           find out/ -type f -name "Image" -exec cp {} "$GITHUB_WORKSPACE/main_repo/anykernel3/" \;
 
