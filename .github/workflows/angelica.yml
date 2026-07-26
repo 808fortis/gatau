@@ -38,7 +38,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          cd android-kernel/common
+          cd kernel/source
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "build: auto-commit local changes to avoid -dirty suffix"
