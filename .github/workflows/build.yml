@@ -55,7 +55,7 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
           cp -r ../susfs4ksu/kernel_patches/fs/* fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
-          patch -p1 < "../susfs4ksu/kernel_patches/nomount_5.10_kernel_integration.patch"
+          patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
 
           git clone https://github.com/maxsteeel/nomount ../nomount
           patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
