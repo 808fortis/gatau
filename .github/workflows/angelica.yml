@@ -22,7 +22,7 @@ jobs:
       - name: Fix syntax in DrvGen.py
         run: |
           python3 -c "
-          path = 'tools/dct/DrvGen.py'
+          path = './kernel/source/tools/dct/DrvGen.py'
           with open(path, 'r') as f:
               content = f.read()
           import re
