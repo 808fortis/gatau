@@ -19,17 +19,15 @@ jobs:
           ref: dandelion-q-oss
           path: kernel/source
 
-      - name: Fix syntax in DrvGen.py
+      - name: Checkout Custom Repo
+        uses: actions/checkout@v4
+        with:
+          path: custom_files
+
+      - name: Some fix
         run: |
-          python3 -c "
-          path = './kernel/source/tools/dct/DrvGen.py'
-          with open(path, 'r') as f:
-              content = f.read()
-          import re
-          fixed = re.sub(r'print\s+([^\(\n]+)', r'print(\1)', content)
-          with open(path, 'w') as f:
-              f.write(fixed)
-          "
+          cp "$GITHUB_WORKSPACE/custom_files/angelica/DrvGen.py" ./kernel/source/tools/dct
+          
 
       - name: Build
         uses: dabao1955/kernel_build_action@main
