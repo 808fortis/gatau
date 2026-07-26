@@ -52,10 +52,10 @@ jobs:
           cd android-kernel/common
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
-          patch -p1 < ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch
           cp ../susfs4ksu/kernel_patches/fs/* fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* include/linux/
           patch -p1 < ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch
+          patch -p1 < ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch
 
       - name: Apply All Patch Files
         run: |
@@ -99,7 +99,7 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
-          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+          LTO=thin MLGO=true BOULT_PROFILE=true BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
           cp android-kernel/out/android12-5.10/dist/Image "$GITHUB_WORKSPACE/custom_files/anykernel3"
 
       - name: Upload Kernel Artifact
