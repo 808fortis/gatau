@@ -2,7 +2,27 @@ name: Build Kernel
 
 on:
   workflow_dispatch:
-  push:
+    inputs:
+      ksu_type:
+        description: 'Select KernelSU Variant'
+        required: true
+        type: choice
+        options:
+          - ReSukiSU
+          - KernelSU-Next
+          - KernelSU
+          - KowSU
+        default: ReSukiSU
+      susfs:
+        description: 'Enable SuSFS'
+        required: true
+        type: boolean
+        default: true
+      nomount:
+        description: 'Enable NoMount'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -11,19 +31,9 @@ jobs:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 20
+          swap-size-gb: 10
 
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo apt-get clean
-          df -h
-
-      - name: Checkout Custom Repo
+      - name: Checkout Main Repo
         uses: actions/checkout@v4
         with:
           path: main_repo
@@ -46,22 +56,34 @@ jobs:
           repo init -u https://android.googlesource.com/kernel/manifest -b common-android12-5.10 --depth=1
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle --force-sync
 
-      - name: Setup ReSukiSU, SuSFS, and NoMount
+      - name: Setup KernelSU, SuSFS, and NoMount
         run: |
           cd android-kernel/common
           
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          if [ "${{ github.event.inputs.ksu_type }}" == "ReSukiSU" ]; then
+            curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
+          elif [ "${{ github.event.inputs.ksu_type }}" == "KernelSU-Next" ]; then
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s stable
+          elif [ "${{ github.event.inputs.ksu_type }}" == "KernelSU" ]; then
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+          elif [ "${{ github.event.inputs.ksu_type }}" == "KowSU" ]; then
+            curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/master/kernel/setup.sh" | bash -
+          fi
           
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
-          cp -r ../susfs4ksu/kernel_patches/fs/* fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
-          patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
+          if [ "${{ github.event.inputs.susfs }}" == "true" ]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android12-5.10 ../susfs4ksu
+            cp -r ../susfs4ksu/kernel_patches/fs/* fs/
+            cp -r ../susfs4ksu/kernel_patches/include/linux/* include/linux/
+            patch -p1 < "../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch"
+          fi
 
-          git clone https://github.com/maxsteeel/nomount ../nomount
-          patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
-          cp -r ../nomount/kernel/src/* fs/
+          if [ "${{ github.event.inputs.nomount }}" == "true" ]; then
+            git clone https://github.com/maxsteeel/nomount ../nomount
+            patch -p1 < "../nomount/kernel/patches/nomount_5.10_kernel_integration.patch"
+            cp -r ../nomount/kernel/src/* fs/
+          fi
 
-      - name: Merge Custom Fragment
+      - name: Merge Fragment
         run: |
           cd android-kernel
           FRAGMENT_FILE="$GITHUB_WORKSPACE/main_repo/fragments/custom.fragment"
@@ -98,5 +120,5 @@ jobs:
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AK3-5.10-ReSukiSU
+          name: AK3-5.10-${{ github.event.inputs.ksu_type }}
           path: main_repo/anykernel3/
