@@ -118,6 +118,8 @@ jobs:
       - name: Build Kernel
         run: |
           cd android-kernel
+          FIXED_DATE="Mon Jan  1 00:00:00 UTC 2024"
+          export KBUILD_BUILD_TIMESTAMP="$FIXED_DATE"
           LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
           
           mkdir -p "$GITHUB_WORKSPACE/main_repo/anykernel3"
