@@ -15,7 +15,7 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: realme-mediatek-dev/android_kernel_realme_mt676
+          repository: realme-mediatek-dev/android_kernel_realme_mt6765
           ref: android-11.0
           path: kernel/source
 
