@@ -15,8 +15,8 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: MiCode/Xiaomi_Kernel_OpenSource
-          ref: dandelion-q-oss
+          repository: dandelion64-Archives/android_kernel_xiaomi_dandelion
+          ref: android-10.0
           path: kernel/source
 
       - name: Checkout Custom Repo
@@ -24,15 +24,10 @@ jobs:
         with:
           path: custom_files
 
-      - name: Some fix
-        run: |
-          cp "$GITHUB_WORKSPACE/custom_files/angelica/DrvGen.py" ./kernel/source/tools/dct
-
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: ./kernel/source/
-          kernel-branch: dandelion-q-oss
           config: angelica_defconfig
           arch: arm64
           aosp-gcc: true
