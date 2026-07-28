@@ -14,7 +14,7 @@ on:
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
-        default: 'https://github.com/808fortis/cph2269_twrp_tree/tree/main'
+        default: 'https://github.com/808fortis/cph2269_twrp_tree'
       DEVICE_TREE_BRANCH:
         description: 'DEVICE_TREE_BRANCH'
         required: true
@@ -36,7 +36,7 @@ on:
       MAKEFILE_NAME:
         description: 'MAKEFILE_NAME'
         required: true
-        default: 'twrp_oppo6765'
+        default: 'omni_oppo6765'
       BUILD_TARGET:
         description: 'BUILD_TARGET'
         required: true
