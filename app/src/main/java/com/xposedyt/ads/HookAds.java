@@ -17,7 +17,7 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-public final class UnifiedAdsHook {
+public final class HookAds {
 
     private static final List<String> AD_PATH_PATTERNS = Arrays.asList(
             "_ad_with",
