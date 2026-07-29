@@ -58,7 +58,7 @@ public final class HookAds {
             "jumpahead"
     );
 
-    private UnifiedAdsHook() {}
+    private HookAds() {}
 
     public static void hook(ClassLoader classLoader) {
         hookLithoComponents(classLoader);
